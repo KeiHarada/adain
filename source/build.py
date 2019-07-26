@@ -193,7 +193,7 @@ def road(radius):
             outfile.write("sid,motorway,trunk,others\n")
 
             for line in open("database/station/station_"+city+".csv", "r").readlines()[1:]:
-                
+
                 for i in range(1, 11):
 
                     try:

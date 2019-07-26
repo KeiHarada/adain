@@ -15,6 +15,7 @@ from source.utility import get_aqi_series
 from source.utility import get_meteorology_series
 from source.utility import get_road_data
 from source.utility import normalization
+from source.utility import ignore_aqi_error
 from source.utility import data_interpolate
 from source.utility import weather_onehot
 from source.utility import winddirection_onehot
@@ -228,6 +229,7 @@ def makeDataset(city_name, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
     aqi_raw = pd.read_csv("database/aqi/aqi_" + city_name + ".csv", dtype=dtype)
+    aqi_raw = ignore_aqi_error(aqi_raw[aqi_attribute])
     df = data_interpolate(aqi_raw[[model_attribute]])
     aqi_raw = pd.concat([aqi_raw.drop(aqi_attribute, axis=1), df], axis=1)
     with open("dataset/aqiStatistics.pickle", "wb") as pl:
