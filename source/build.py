@@ -214,7 +214,8 @@ def road(radius):
                             else:
                                 road["others"] += 1
                         outfile.write(sid+","+str(road["motorway"])+","+str(road["trunk"])+","+str(road["others"])+"\n")
-                    except overpy.exception.OverpassTooManyRequests:
+                    except overpy.exception.OverpassTooManyRequests as e:
+                        print("error:{e} retry:{i}/10".format(e=e, i=i))
                         sleep(i * 5)
 
 
