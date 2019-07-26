@@ -253,32 +253,32 @@ def grid(scale, gridsize):
                 outfile.write("minlat,minlon,maxlat,maxlon\n")
                 outfile.write(ll["minlat"]+","+ll["minlon"]+","+ll["maxlat"]+","+ll["maxlon"]+"\n")
 
-            # Set up projections
-            p_ll = pyproj.Proj(init='epsg:4326')
-            p_mt = pyproj.Proj(init='epsg:3857')  # metric; same as EPSG:900913
-
-            # Create corners of rectangle to be transformed to a grid
-            WS = shapely.geometry.Point((float(ll["minlon"]), float(ll["minlat"]))) #(x,y)=(lon,lat)
-            EN = shapely.geometry.Point((float(ll["maxlon"]), float(ll["maxlat"]))) #(x,y)=(lon,lat)
-
-            # Project corners to target projection
-            WS = pyproj.transform(p_ll, p_mt, WS.x, WS.y)  # WS = (min_x,min_y)
-            EN = pyproj.transform(p_ll, p_mt, EN.x, EN.y)  # EN = (max_x,max_y)
-
-            # Iterate over 2D area
-            grid_id = 0
-            with open("database/grid/grid_" + city + ".csv", "w") as outfile:
-                outfile.write("gid,minlat,minlon,maxlat,maxlon\n")
-                x = WS[0]
-                while x <= EN[0]:
-                    y = WS[1]
-                    while y <= EN[1]:
-                        ws = pyproj.transform(p_mt, p_ll, x, y)
-                        en = pyproj.transform(p_mt, p_ll, x+gridsize, y+gridsize)
-                        outfile.write(str(grid_id)+","+"{},{},{},{}\n".format(ws[1], ws[0], en[1], en[0]))
-                        y += gridsize
-                        grid_id += 1
-                    x += gridsize
+            # # Set up projections
+            # p_ll = pyproj.Proj(init='epsg:4326')
+            # p_mt = pyproj.Proj(init='epsg:3857')  # metric; same as EPSG:900913
+            #
+            # # Create corners of rectangle to be transformed to a grid
+            # WS = shapely.geometry.Point((float(ll["minlon"]), float(ll["minlat"]))) #(x,y)=(lon,lat)
+            # EN = shapely.geometry.Point((float(ll["maxlon"]), float(ll["maxlat"]))) #(x,y)=(lon,lat)
+            #
+            # # Project corners to target projection
+            # WS = pyproj.transform(p_ll, p_mt, WS.x, WS.y)  # WS = (min_x,min_y)
+            # EN = pyproj.transform(p_ll, p_mt, EN.x, EN.y)  # EN = (max_x,max_y)
+            #
+            # # Iterate over 2D area
+            # grid_id = 0
+            # with open("database/grid/grid_" + city + ".csv", "w") as outfile:
+            #     outfile.write("gid,minlat,minlon,maxlat,maxlon\n")
+            #     x = WS[0]
+            #     while x <= EN[0]:
+            #         y = WS[1]
+            #         while y <= EN[1]:
+            #             ws = pyproj.transform(p_mt, p_ll, x, y)
+            #             en = pyproj.transform(p_mt, p_ll, x+gridsize, y+gridsize)
+            #             outfile.write(str(grid_id)+","+"{},{},{},{}\n".format(ws[1], ws[0], en[1], en[0]))
+            #             y += gridsize
+            #             grid_id += 1
+            #         x += gridsize
 
 
 if __name__ == "__main__":
@@ -295,9 +295,9 @@ if __name__ == "__main__":
 
     print("map scale: "+args.cityscale)
     #print("map scale: "+args.cityscale+"\tgrid size: " + str(args.gridsize) + " [m]")
-    # print("\t|- given map is divided ... ", end="")
-    # grid(args.cityscale, args.gridsize)
-    # print(Color.GREEN + "OK" + Color.END)
+    print("\t|- city data is build ... ", end="")
+    grid(args.cityscale, args.gridsize)
+    print(Color.GREEN + "OK" + Color.END)
 
     print("\t|- station data is build ... ", end="")
     station()
