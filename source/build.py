@@ -193,8 +193,9 @@ def road(radius):
             outfile.write("sid,motorway,trunk,others\n")
 
             for line in open("database/station/station_"+city+".csv", "r").readlines()[1:]:
-
+                
                 for i in range(1, 11):
+
                     try:
                         api = overpy.Overpass()
                         sid, lat, lon, did, gid = line.strip().split(",")
@@ -217,6 +218,12 @@ def road(radius):
                     except overpy.exception.OverpassTooManyRequests as e:
                         print("error:{e} retry:{i}/10".format(e=e, i=i))
                         sleep(i * 5)
+                        fg = False
+                    else:
+                        fg = True
+
+                    if fg:
+                        break
 
 
 ## grid base ##
