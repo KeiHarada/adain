@@ -194,7 +194,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
         print(Color.GREEN + "OK" + Color.END)
 
         # save best model
-        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle", "rb") as model:
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle", "rb") as pl:
+            model = pickle.load(pl)
             with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_model.pickle", "wb") as path:
                 torch.save(torch.load(model), path)
 
@@ -212,8 +213,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
             pickle.dump(test_target, pl)
 
         # save train log
-        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.csv", "rb") as path:
-            log = pickle.load(path)
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.csv", "rb") as pl:
+            log = pickle.load(pl)
             log.to_csv("log/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_log.csv", index=False)
 
         # evaluate
