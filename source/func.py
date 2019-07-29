@@ -650,7 +650,7 @@ def objective(trial):
     return rmse_valid
 
 
-def evaluate(best_trial, station_train, station_test):
+def evaluate(model_state_dict, station_train, station_test):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -662,8 +662,7 @@ def evaluate(best_trial, station_train, station_test):
                   inputDim_seq_local=inputDim["seq_local"],
                   inputDim_seq_others=inputDim["seq_others"])
 
-    model_path = "tmp/" + str(best_trial.number).zfill(4) + "_model.pickle"
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(model_state_dict)
 
     # evaluate mode
     model.eval()
