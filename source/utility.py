@@ -138,6 +138,7 @@ def aqi_class(value):
         return "ERROR"
 
 def normalization(df):
+
     scaler = MinMaxScaler([0, 1])
     scaler.fit(df)
     df_n = scaler.transform(df)
@@ -197,9 +198,6 @@ def calc_weather_onehot(value):
     onehot = [0]*18
     onehot[value] = 1
     return onehot
-
-def ignore_aqi_error(df):
-    pass
 
 def data_interpolate(df):
     return df.interpolate(limit_direction='both')

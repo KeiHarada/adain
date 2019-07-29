@@ -6,6 +6,7 @@ rawdata/osm/**/*
 rawdata/poi/*.csv
 rawdata/zheng2015/*.csv
 result/*.csv
+log/*.csv
 tmp/*.pickle
 source/__pycache__/*
 .git/

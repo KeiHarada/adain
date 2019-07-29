@@ -15,7 +15,6 @@ from source.utility import get_aqi_series
 from source.utility import get_meteorology_series
 from source.utility import get_road_data
 from source.utility import normalization
-from source.utility import ignore_aqi_error
 from source.utility import data_interpolate
 from source.utility import weather_onehot
 from source.utility import winddirection_onehot
@@ -24,7 +23,7 @@ from source.utility import get_activation
 from source.utility import get_optimizer
 
 
-def makeDataset_st(source_city, target_city, model_attribute, lstm_data_width):
+def makeDataset1(source_city, target_city, model_attribute, lstm_data_width):
     '''
     :param source_city:
     :param model_attribute:
@@ -56,6 +55,8 @@ def makeDataset_st(source_city, target_city, model_attribute, lstm_data_width):
     source = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
     target = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
     road_raw = pd.concat([source, target], ignore_index=True)
+    df = normalization(road_raw[road_attribute])
+    road_raw = pd.concat([road_raw.drop(road_attribute, axis=1), df], axis=1)
 
     '''
     meteorology data
@@ -182,7 +183,7 @@ def makeDataset_st(source_city, target_city, model_attribute, lstm_data_width):
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeDataset(city_name, model_attribute, lstm_data_width):
+def makeDataset0(city_name, model_attribute, lstm_data_width):
     '''
     :param city_name:
     :param model_attribute:
@@ -204,6 +205,8 @@ def makeDataset(city_name, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in road_attribute}
     dtype["sid"] = "object"
     road_raw = pd.read_csv("database/road/road_" + city_name + ".csv", dtype=dtype)
+    df = normalization(road_raw[road_attribute])
+    road_raw = pd.concat([road_raw.drop(road_attribute, axis=1), df], axis=1)
 
     '''
     meteorology data
@@ -229,7 +232,6 @@ def makeDataset(city_name, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
     aqi_raw = pd.read_csv("database/aqi/aqi_" + city_name + ".csv", dtype=dtype)
-    aqi_raw = ignore_aqi_error(aqi_raw[aqi_attribute])
     df = data_interpolate(aqi_raw[[model_attribute]])
     aqi_raw = pd.concat([aqi_raw.drop(aqi_attribute, axis=1), df], axis=1)
     with open("dataset/aqiStatistics.pickle", "wb") as pl:
@@ -455,7 +457,7 @@ def loadData(sid_local, sid_others):
 
     return train_local_static, train_local_seq, train_others_static, train_others_seq, target
 
-def validate(model, criterion, station_valid, station_train):
+def validate(model, station_valid, station_train):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -463,7 +465,8 @@ def validate(model, criterion, station_valid, station_train):
     divide_num = 50
 
     # for evaluation
-    valid_loss = []
+    result = []
+    result_label = []
 
     for station_local in station_valid:
 
@@ -501,13 +504,21 @@ def validate(model, criterion, station_valid, station_train):
                 x_local_seq = x_local_seq.to(device)
                 x_others_static = list(map(lambda x: x.to(device), x_others_static))
                 x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
-                y_label = y_label.to(device)
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-                valid_loss.append(criterion(y, y_label).item())
+                y = y.to("cpu")
 
-    # RMSE
-    return np.sqrt(np.average(valid_loss))
+                # evaluate
+                y = list(map(lambda x: x[0], y.data.numpy()))
+                y_label = list(map(lambda x: x[0], y_label.data.numpy()))
+                result += y
+                result_label += y_label
+
+    # evaluation score
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+
+    return rmse, accuracy
 
 
 def objective(trial):
@@ -523,7 +534,7 @@ def objective(trial):
     # no tune
     batch_size = 32
     epochs = 50
-    lr = 0.01
+    lr = 0.001
     wd = 0.0
 
     # input dimension
@@ -547,6 +558,9 @@ def objective(trial):
     # initialize the early stopping object
     patience = int(int(epochs)*0.2)
     early_stopping = EarlyStopping(patience=patience, verbose=True)
+
+    # log
+    logs = []
 
     for step in range(int(epochs)):
 
@@ -608,12 +622,14 @@ def objective(trial):
 
         # validation
         model.eval()
-        valid_loss = validate(model, criterion, station_valid, station_train)
+        rmse_valid, accuracy_valid = validate(model, station_valid, station_train)
         model.train()
-        print("\t\t|- validation loss: %.10f" % (valid_loss))
+        log = {'epoch': step, 'validation rmse': rmse_valid, 'validation accuracy': accuracy_valid}
+        logs.append(log)
+        print("\t\t|- validation rmse: %.10f, validation accuracy: %.10f" % (rmse_valid, accuracy_valid))
 
         # early stopping
-        early_stopping(valid_loss, model)
+        early_stopping(rmse_valid, model)
         if early_stopping.early_stop:
             print("\t\tEarly stopping")
             break
@@ -621,12 +637,17 @@ def objective(trial):
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))
 
-    # saving model
+    # save model
     trial_num = trial.number
     with open("tmp/" + str(trial_num).zfill(4) + "_model.pickle", "wb") as pl:
         torch.save(model.state_dict(), pl)
 
-    return valid_loss
+    # save logs
+    logs = pd.DataFrame(logs)
+    with open("tmp/" + str(trial_num).zfill(4) + "_log.pickle", "wb") as pl:
+        pickle.dump(logs, pl)
+
+    return rmse_valid
 
 
 def evaluate(best_trial, station_train, station_test):
@@ -658,9 +679,9 @@ def evaluate(best_trial, station_train, station_test):
     ITR = len(station_test) * len(station_train) * divide_num
     for station_local in station_test:
 
-        for station_remove in station_train:
+        for station_removed in station_train:
             station_others = station_train.copy()
-            station_others.remove(station_remove)
+            station_others.remove(station_removed)
 
             # get train and target data
             test_local_static, \
@@ -711,4 +732,4 @@ def evaluate(best_trial, station_train, station_test):
     accuracy = calc_correct(result, result_label) / len(result)
     print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
 
-    return model, rmse, accuracy
+    return rmse, accuracy
