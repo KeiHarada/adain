@@ -284,10 +284,10 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
     aqiStatistics.to_csv(path, mode="a")
 
     # to output
-    rmse = np.average(np.array(rmse_list), axis=1)
+    rmse = np.average(np.array(rmse_list), axis=0)
     rmse = list(map(lambda x: str(x), rmse))
     rmse_list = list(map(lambda x: str(x), rmse_list))
-    accuracy = np.average(np.array(accuracy_list), axis=1)
+    accuracy = np.average(np.array(accuracy_list), axis=0)
     accuracy = list(map(lambda x: str(x), accuracy))
     accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
@@ -396,4 +396,3 @@ if __name__ == "__main__":
 
     #reEvaluateTarget(SOURCE, TARGETs)
     #analysis(SOURCE, TARGETs)
-
