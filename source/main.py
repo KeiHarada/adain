@@ -116,7 +116,7 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_
         accuracy = np.average(accuracy_list)
         result.write("average," + str(rmse) + "," + str(accuracy) + "\n")
 
-def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH):
+def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH):
 
     '''
     Train: Source city
@@ -129,18 +129,18 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
     inputDim_seq_local = dataDim["meteorology"]  # meteorology attribute
     inputDim_seq_others = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
 
-    # saving input dimension
+    # save input dimension
     with open("model/inputDim.pickle", "wb") as fl:
-        dc = {"static": inputDim_static,
-              "seq_local": inputDim_seq_local,
-              "seq_others": inputDim_seq_others}
+        dc = {"static": inputDim_static, "seq_local": inputDim_seq_local, "seq_others": inputDim_seq_others}
         pickle.dump(dc, fl)
 
     # load source and target stations
-    station_source = pickle.load(open("dataset/stationSource.pickle", "rb"))
-    station_target = pickle.load(open("dataset/stationTarget.pickle", "rb"))
+    station_source = pickle.load(open("dataset/station_"+SOURCE+".pickle", "rb"))
+    station_target = []
+    for i in range(len(TARGETs)):
+        station_target.append(pickle.load(open("dataset/station_"+TARGETs[i]+".pickle", "rb")))
 
-    # to divide the datasets
+    # the number of train, validate, test datasets
     TRAIN_NUM = int(len(station_source) * TRAIN_RATE)
     VAlID_NUM = int(TRAIN_NUM * VALID_RATE)
     if VAlID_NUM < 2:
@@ -148,10 +148,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
     TEST_NUM = len(station_source)-(TRAIN_NUM+VAlID_NUM)
 
     # to evaluate
-    rmse_source = list()
-    accuracy_source = list()
-    rmse_target = list()
-    accuracy_target = list()
+    rmse_list = list()
+    accuracy_list = list()
 
     # statictics of dataset
     aqiStatistics = pickle.load(open("dataset/aqiStatistics.pickle", "rb"))
@@ -161,30 +159,40 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
     print(aqiStatistics)
 
     for i in range(LOOP):
+
+        # to evaluate
+        rmse_tmp = list()
+        accuracy_tmp = list()
+
         print("---LOOP " + str(i).zfill(2) + "---")
         start = time.time()
 
         # shuffle for LOOP
         source = station_source.copy()
-        target = station_target.copy()
         random.shuffle(source)
-        random.shuffle(target)
+        target = []
+        for i in range(len(TARGETs)):
+            target.append(station_target[i].copy())
+            random.shuffle(target[i])
 
         # select train, validate, test sets
         train = source[:TRAIN_NUM]
         valid = source[TRAIN_NUM:TRAIN_NUM+VAlID_NUM]
         test_source = source[TRAIN_NUM+VAlID_NUM:]
-        test_target = target[:TEST_NUM]
+        test_target = []
+        for i in range(len(target)):
+            test_target.append(target[i][:TEST_NUM])
 
         # saving train, valid, test sets
         with open("tmp/trainset.pickle", "wb") as pl:
             pickle.dump(train, pl)
         with open("tmp/validset.pickle", "wb") as pl:
             pickle.dump(valid, pl)
-        with open("tmp/testset_source.pickle", "wb") as pl:
+        with open("tmp/testset_"+SOURCE+".pickle", "wb") as pl:
             pickle.dump(test_source, pl)
-        with open("tmp/testset_source.pickle", "wb") as pl:
-            pickle.dump(test_target, pl)
+        for i in range(len(test_target)):
+            with open("tmp/testset_"+TARGETs[i]+".pickle", "wb") as pl:
+                pickle.dump(test_target[i], pl)
 
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
@@ -194,42 +202,50 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
         print(Color.GREEN + "OK" + Color.END)
 
         # save best model
-        path = "tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle"
-        model = torch.load(path)
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_model.pickle", "wb") as pl:
-            pickle.dump(model, pl)
+        model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "model", SOURCE)
+        with open(path, "wb") as pl:
+            pickle.dump(model_state_dict, pl)
 
         # save dataset
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_trainset.pickle",
-                  "wb") as pl:
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "train", SOURCE)
+        with open(path, "wb") as pl:
             pickle.dump(train, pl)
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_validset.pickle",
-                  "wb") as pl:
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "valid", SOURCE)
+        with open(path, "wb") as pl:
             pickle.dump(valid, pl)
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_testset_source.pickle", "wb") as pl:
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "test", SOURCE)
+        with open(path, "wb") as pl:
             pickle.dump(test_source, pl)
-
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_testset_target.pickle", "wb") as pl:
-            pickle.dump(test_target, pl)
+        for i in range(len(test_target)):
+            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "test", TARGETs[i])
+            with open(path, "wb") as pl:
+                pickle.dump(test_target[i], pl)
 
         # save train log
         with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.csv", "rb") as pl:
             log = pickle.load(pl)
-            log.to_csv("log/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_log.csv", index=False)
+            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(i).zfill(2), "log", SOURCE)
+            log.to_csv(path, index=False)
 
         # load best model
-        with open("model/" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_model.pickle", "rb") as pl:
-            model_state_dict = pickle.load(pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "model", SOURCE)
+        model_state_dict = pickle.load(open(path, "rb"))
 
         # evaluate
-        print("* evaluating on source city")
+        print("* evaluate in "+SOURCE)
         rmse, accuracy = evaluate(model_state_dict, train, test_source)
-        rmse_source.append(rmse)
-        accuracy_source.append(accuracy)
-        print("* evaluating on target city")
-        rmse, accuracy = evaluate(model_state_dict, train, test_target)
-        rmse_target.append(rmse)
-        accuracy_target.append(accuracy)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        for i in range(len(test_target)):
+            print("* evaluate in "+TARGETs[i])
+            rmse, accuracy = evaluate(model_state_dict, train, test_target[i])
+            rmse_tmp.append(rmse)
+            accuracy_tmp.append(accuracy)
+
+        rmse_list.append(rmse_tmp)
+        accuracy_list.append(accuracy_tmp)
 
         # time point
         t = (time.time() - start) / (60 * 60)
@@ -247,10 +263,11 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
     LEARNING_RATE = 0.01
     WEIGHT_DECAY = 0.0
 
-    with open("result/result_" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + ".csv", "w") as result:
+    path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
+    with open(path, "w") as result:
         result.write("--------------------------------------------\n" +
                      "SOURCE_CITY = " + SOURCE + "\n" +
-                     "TARGET_CITY = " + TARGET + "\n" +
+                     "TARGET_CITY = " + ",".join(TARGETs) + "\n" +
                      "MODEL_ATTRIBUTE = " + ATTRIBUTE + "\n" +
                      "TRAIN_SIZE_RATE = " + str(TRAIN_RATE) + "\n" +
                      "VARID_SIZE_RATE = " + str(VALID_RATE) + "\n" +
@@ -264,21 +281,31 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGET, TRAIN_RATE, VALID_RATE, 
                      "WEIGHT_DECAY = " + str(WEIGHT_DECAY) + "\n" +
                      "--------------------------------------------\n")
 
-    aqiStatistics.to_csv("result/result_" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + ".csv", mode="a")
+    aqiStatistics.to_csv(path, mode="a")
 
-    with open("result/result_" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + ".csv", "a") as result:
+    # to output
+    rmse = np.average(np.array(rmse_list), axis=1)
+    rmse = list(map(lambda x: str(x), rmse))
+    rmse_list = list(map(lambda x: str(x), rmse_list))
+    accuracy = np.average(np.array(accuracy_list), axis=1)
+    accuracy = list(map(lambda x: str(x), accuracy))
+    accuracy_list = list(map(lambda x: str(x), accuracy_list))
+
+    with open(path, "a") as result:
         result.write("--------------------------------------------\n")
-        result.write("model_No,rmse_s,rmse_t,accuracy_s,accuracy_t\n")
-        for i in range(len(rmse_source)):
-            result.write(str(i).zfill(2) + "," + str(rmse_source[i]) + "," + str(rmse_target[i]) + ","
-                         + str(accuracy_source[i]) + "," + str(accuracy_target[i]) + "\n")
-
-        rmse_source = np.average(rmse_source)
-        rmse_target = np.average(rmse_target)
-        accuracy_source = np.average(accuracy_source)
-        accuracy_target = np.average(accuracy_target)
-        result.write("average," + str(rmse_source) + "," + str(rmse_target) + ","
-                         + str(accuracy_source) + "," + str(accuracy_target) + "\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
+        for i in range(len(rmse_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list)))
+        result.write("average,{}\n".format(",".join(rmse)))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
+        for i in range(len(accuracy_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list)))
+        result.write("average,{}\n".format(",".join(accuracy)))
 
 def analysis(source, targets):
     import pandas as pd
@@ -345,63 +372,13 @@ def analysis(source, targets):
             print("----------------------")
         print("////// "+target+" //////")
 
-def reEvaluateTarget(source, targets):
-
-    model_attribute = "pm25"
-    # to evaluate
-    rmse_source = list()
-    accuracy_source = list()
-    rmse_target = list()
-    accuracy_target = list()
-
-    for target in targets:
-
-        for i in range(5):
-
-            with open("model/" + source + "2" + target + "_" + model_attribute + "_" + str(i).zfill(2) + "_model.pickle", "rb") as pl:
-                model_state_dict = pickle.load(pl)
-
-            # train
-            train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
-                                     +str(i).zfill(2)+"_trainset.pickle", "rb"))
-            # test: source
-            test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-                                     +str(i).zfill(2)+"_testset_source.pickle", "rb"))
-            # test: target
-            test_t = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-                                     +str(i).zfill(2)+"_testset_target.pickle", "rb"))
-
-            # evaluate source
-            rmse, accuracy = evaluate(model_state_dict, train, test_t)
-            rmse_source.append(rmse)
-            accuracy_source.append(accuracy)
-
-            # evaluate target
-            rmse, accuracy = evaluate(model_state_dict, train, test_s)
-            rmse_target.append(rmse)
-            accuracy_target.append(accuracy)
-
-            with open("tmp/result_" + SOURCE + "2" + TARGET + "_" + ATTRIBUTE + ".csv", "a") as result:
-                result.write("--------------------------------------------\n")
-                result.write("model_No,rmse_s,rmse_t,accuracy_s,accuracy_t\n")
-                for i in range(len(rmse_source)):
-                    result.write(str(i).zfill(2) + "," + str(rmse_source[i]) + "," + str(rmse_target[i]) + ","
-                                 + str(accuracy_source[i]) + "," + str(accuracy_target[i]) + "\n")
-
-                rmse_source = np.average(rmse_source)
-                rmse_target = np.average(rmse_target)
-                accuracy_source = np.average(accuracy_source)
-                accuracy_target = np.average(accuracy_target)
-                result.write("average," + str(rmse_source) + "," + str(rmse_target) + ","
-                             + str(accuracy_source) + "," + str(accuracy_target) + "\n")
-
 
 if __name__ == "__main__":
 
 
     ATTRIBUTE = "pm25"
     SOURCE = "beijing"
-    TARGET = ["tianjin", "guangzhou"]
+    TARGETs = ["tianjin", "guangzhou"]
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
@@ -409,15 +386,14 @@ if __name__ == "__main__":
     TRIAL = 1
 
     # # RE-experiment of AAAI'18
-    # for CITY in [SOURCE, ] + TARGET:
+    # for CITY in [SOURCE, ] + TARGETs:
     #     makeDataset0(CITY, ATTRIBUTE, LSTM_DATA_WIDTH)
     #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # our experiment
-    # for target in TARGET:
-    #     makeDataset1(SOURCE, target, ATTRIBUTE, LSTM_DATA_WIDTH)
-    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, target, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
-    reEvaluateTarget(SOURCE, TARGET)
-    #analysis(SOURCE, TARGET)
+    #reEvaluateTarget(SOURCE, TARGETs)
+    #analysis(SOURCE, TARGETs)
 

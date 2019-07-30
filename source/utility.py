@@ -199,6 +199,9 @@ def calc_weather_onehot(value):
     onehot[value] = 1
     return onehot
 
+def ignore_aqi_error(df):
+    return df
+
 def data_interpolate(df):
     return df.interpolate(limit_direction='both')
 

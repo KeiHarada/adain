@@ -23,27 +23,33 @@ from source.utility import get_activation
 from source.utility import get_optimizer
 
 
-def makeDataset1(source_city, target_city, model_attribute, lstm_data_width):
+def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width):
     '''
     :param source_city:
+    :param target_cities (list):
     :param model_attribute:
     :param lstm_data_width:
     :return:
     '''
 
     print("dataset ... ", end="")
+
     '''
     station data
     '''
     source = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
-    target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
-
-    with open("dataset/stationSource.pickle", "wb") as pl:
+    with open("dataset/station_"+source_city+".pickle", "wb") as pl:
         pickle.dump(list(source["sid"]), pl)
-    with open("dataset/stationTarget.pickle", "wb") as pl:
-        pickle.dump(list(target["sid"]), pl)
 
-    station_raw = pd.concat([source, target], ignore_index=True)
+    for target_city in target_cities:
+        target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
+        with open("dataset/station_"+target_city+".pickle", "wb") as pl:
+            pickle.dump(list(target["sid"]), pl)
+        if target_city == target_cities[0]:
+            station_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            station_raw = pd.concat([station_raw, target], ignore_index=True)
+
     station_all = list(station_raw["sid"])
 
     '''
@@ -53,8 +59,12 @@ def makeDataset1(source_city, target_city, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in road_attribute}
     dtype["sid"] = "object"
     source = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
-    target = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
-    road_raw = pd.concat([source, target], ignore_index=True)
+    for target_city in target_cities:
+        target = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
+        if target_city == target_cities[0]:
+            road_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            road_raw = pd.concat([road_raw, target], ignore_index=True)
     df = normalization(road_raw[road_attribute])
     road_raw = pd.concat([road_raw.drop(road_attribute, axis=1), df], axis=1)
 
@@ -65,8 +75,12 @@ def makeDataset1(source_city, target_city, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in meteorology_attribute}
     dtype["did"], dtype["time"] = "object", "object"
     source = pd.read_csv("database/meteorology/meteorology_" + source_city + ".csv", dtype=dtype)
-    target = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
-    meteorology_raw = pd.concat([source, target], ignore_index=True)
+    for target_city in target_cities:
+        target = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
+        if target_city == target_cities[0]:
+            meteorology_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            meteorology_raw = pd.concat([meteorology_raw, target], ignore_index=True)
     meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
     df = normalization(data_interpolate(meteorology_raw[meteorology_attribute]))
     meteorology_raw = pd.concat([meteorology_raw.drop(meteorology_attribute, axis=1), df], axis=1)
@@ -84,8 +98,12 @@ def makeDataset1(source_city, target_city, model_attribute, lstm_data_width):
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
     source = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
-    target = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
-    aqi_raw = pd.concat([source, target], ignore_index=True)
+    for target_city in target_cities:
+        target = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
+        if target_city == target_cities[0]:
+            aqi_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            aqi_raw = pd.concat([aqi_raw, target], ignore_index=True)
     df = data_interpolate(aqi_raw[[model_attribute]])
     aqi_raw = pd.concat([aqi_raw.drop(aqi_attribute, axis=1), df], axis=1)
     with open("dataset/aqiStatistics.pickle", "wb") as pl:
@@ -532,9 +550,9 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # no tune
-    batch_size = 32
-    epochs = 50
-    lr = 0.001
+    batch_size = 1024
+    epochs = 1
+    lr = 0.1
     wd = 0.0
 
     # input dimension
