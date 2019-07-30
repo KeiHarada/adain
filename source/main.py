@@ -296,14 +296,14 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
         result.write("----------\n")
         result.write("model,{}\n".format(",".join(TARGETs)))
         for i in range(len(rmse_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list)))
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
         result.write("average,{}\n".format(",".join(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
         result.write("model,{}\n".format(",".join(TARGETs)))
         for i in range(len(accuracy_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list)))
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
         result.write("average,{}\n".format(",".join(accuracy)))
 
 def analysis(source, targets):
