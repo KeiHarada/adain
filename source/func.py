@@ -543,16 +543,16 @@ def objective(trial):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # to tune
+    # hyper parameters
     # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512, 1024])
     # epochs = trial.suggest_discrete_uniform("epochs", 1, 5, 1)
     # lr = trial.suggest_loguniform("learning_rate", 1e-5, 1e-1)
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
-    # no tune
-    batch_size = 1024
-    epochs = 1
-    lr = 0.1
+    # hyper parameters
+    batch_size = 32
+    epochs = 50
+    lr = 0.001
     wd = 0.0
 
     # input dimension
