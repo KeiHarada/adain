@@ -223,7 +223,7 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
                 pickle.dump(test_target[i], pl)
 
         # save train log
-        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.csv", "rb") as pl:
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
             log = pickle.load(pl)
             path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(i).zfill(2), "log", SOURCE)
             log.to_csv(path, index=False)
