@@ -196,10 +196,9 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
-        print("* training ... ")
+        print("train in "+SOURCE)
         study = optuna.create_study()
         study.optimize(objective, n_trials=TRIAL)
-        print(Color.GREEN + "OK" + Color.END)
 
         # save best model
         model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
