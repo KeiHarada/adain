@@ -1,5 +1,6 @@
+# to run on server
 import sys
-sys.path.append("/Users/harada/Documents/working/adain")
+sys.path.append("/home")
 
 import pickle
 import time
@@ -311,7 +312,6 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
 def analysis(source, targets):
     import pandas as pd
-    from pprint import pprint
     from source.utility import data_interpolate
     import matplotlib.pyplot as plt
 
@@ -326,9 +326,18 @@ def analysis(source, targets):
     aqi_source = pd.read_csv("database/aqi/aqi_" + source + ".csv", dtype=dtype)
     df = data_interpolate(aqi_source[[model_attribute]])
     aqi_source = pd.concat([aqi_source.drop(aqi_attribute, axis=1), df], axis=1)
-    pprint(set(aqi_source["sid"]))
+    print("# of stations = {}".format(len(set(aqi_source["sid"]))))
+    tmp = list()
+    for i in range(len(x)-1):
+        aqi = aqi_source[aqi_source[model_attribute] >= float(x[i])]
+        aqi = aqi[aqi[model_attribute] < float(x[i+1])]
+        tmp.append(len(aqi))
+    print(tmp)
+    tmp = list(map(lambda a: a/sum(tmp), tmp))
+    print(tmp)
     print(aqi_source.describe())
-    pd.cut(aqi_source[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+    #pd.cut(aqi_source[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+    #plt.savefig("tmp/"+SOURCE+".pdf")
     print("////// "+source+" //////")
 
     for target in targets:
@@ -337,42 +346,52 @@ def analysis(source, targets):
         aqi_target = pd.read_csv("database/aqi/aqi_" + target + ".csv", dtype=dtype)
         df = data_interpolate(aqi_target[[model_attribute]])
         aqi_target = pd.concat([aqi_target.drop(aqi_attribute, axis=1), df], axis=1)
-        pprint(set(aqi_target["sid"]))
+        print("# of stations = {}".format(len(set(aqi_target["sid"]))))
+        tmp = list()
+        for i in range(len(x) - 1):
+            aqi = aqi_target[aqi_target[model_attribute] >= float(x[i])]
+            aqi = aqi[aqi[model_attribute] < float(x[i + 1])]
+            tmp.append(len(aqi))
+        print(tmp)
+        tmp = list(map(lambda a: a / sum(tmp), tmp))
+        print(tmp)
         print(aqi_target.describe())
-        pd.cut(aqi_target[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-        print("----------------------")
-
-        for i in range(5):
-
-            # train
-            train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
-                                     +str(i).zfill(2)+"_trainset.pickle", "rb"))
-            # test: source
-            test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-                                     +str(i).zfill(2)+"_testset_source.pickle", "rb"))
-            # test: target
-            test_t = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-                                     +str(i).zfill(2)+"_testset_target.pickle", "rb"))
-
-
-            aqi = aqi_source[aqi_source["sid"].isin(train)]
-            print(train)
-            print(aqi.describe())
-            pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            aqi = aqi_source[aqi_source["sid"].isin(test_s)]
-            print(test_s)
-            print(aqi.describe())
-            pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            aqi = aqi_target[aqi_target["sid"].isin(test_t)]
-            print(test_t)
-            print(aqi.describe())
-            pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            plt.show()
-            print("----------------------")
+        # pd.cut(aqi_target[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+        # plt.savefig("tmp/" + target + ".pdf")
+        # print("----------------------")
+        # for i in range(5):
+        #
+        #     # train
+        #     train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
+        #                              +str(i).zfill(2)+"_trainset.pickle", "rb"))
+        #     # test: source
+        #     test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
+        #                              +str(i).zfill(2)+"_testset_source.pickle", "rb"))
+        #     # test: target
+        #     test_t = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
+        #                              +str(i).zfill(2)+"_testset_target.pickle", "rb"))
+        #
+        #
+        #     aqi = aqi_source[aqi_source["sid"].isin(train)]
+        #     print(train)
+        #     print(aqi.describe())
+        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+        #
+        #     aqi = aqi_source[aqi_source["sid"].isin(test_s)]
+        #     print(test_s)
+        #     print(aqi.describe())
+        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+        #
+        #     aqi = aqi_target[aqi_target["sid"].isin(test_t)]
+        #     print(test_t)
+        #     print(aqi.describe())
+        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+        #
+        #     plt.show()
+        #     print("----------------------")
         print("////// "+target+" //////")
+
+
 
 def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
@@ -479,7 +498,5 @@ if __name__ == "__main__":
     # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    # reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
-    #analysis(SOURCE, TARGETs)
-
-    print("test")
+    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    # analysis(SOURCE, TARGETs)

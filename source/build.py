@@ -1,3 +1,7 @@
+# to run on server
+import sys
+sys.path.append("/home")
+
 import re
 import requests
 import json

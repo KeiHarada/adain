@@ -1,3 +1,7 @@
+# to run on server
+import sys
+sys.path.append("/home")
+
 import pickle
 import torch
 import numpy as np
