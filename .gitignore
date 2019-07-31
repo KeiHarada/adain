@@ -8,6 +8,8 @@ rawdata/zheng2015/*.csv
 result/*.csv
 log/*.csv
 tmp/*.pickle
+tmp/*.pdf
+tmp/*.csv
 source/__pycache__/*
 .git/
 .idea/
