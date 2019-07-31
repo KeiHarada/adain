@@ -1,3 +1,6 @@
+import sys
+sys.path.append("/Users/harada/Documents/working/adain")
+
 import pickle
 import time
 import random
@@ -371,6 +374,88 @@ def analysis(source, targets):
             print("----------------------")
         print("////// "+target+" //////")
 
+def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for i in range(LOOP):
+
+        start = time.time()
+
+        # to evaluate
+        rmse_tmp = list()
+        accuracy_tmp = list()
+
+        # load train, test dataset
+        path = "model/beijing2tianjin_pm25_{}_trainset.pickle".format(str(i).zfill(2))
+        train = pickle.load(open(path, "rb"))
+        path = "model/beijing2tianjin_pm25_{}_testset_source.pickle".format(str(i).zfill(2))
+        beijing = pickle.load(open(path, "rb"))
+        path = "model/beijing2tianjin_pm25_{}_testset_target.pickle".format(str(i).zfill(2))
+        tianjin = pickle.load(open(path, "rb"))
+        path = "model/beijing2guangzhou_pm25_{}_testset_target.pickle".format(str(i).zfill(2))
+        guangzhou = pickle.load(open(path, "rb"))
+
+        # load model
+        path = "model/beijing2tianjin_pm25_{}_model.pickle".format(str(i).zfill(2))
+        model_state_dict = torch.load(path, map_location="cpu")
+
+        # evaluate
+        print("* evaluate in " + SOURCE)
+        rmse, accuracy = evaluate(model_state_dict, train, beijing)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        print("* evaluate in " + TARGETs[0])
+        rmse, accuracy = evaluate(model_state_dict, train, tianjin)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        print("* evaluate in " + TARGETs[1])
+        rmse, accuracy = evaluate(model_state_dict, train, guangzhou)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        rmse_list.append(rmse_tmp)
+        accuracy_list.append(accuracy_tmp)
+
+        # time point
+        t = (time.time() - start) / (60 * 60)
+        print("time = " + str(t) + " [hours]")
+        print("---LOOP " + str(i).zfill(2) + "---")
+
+        # output results
+        # EPOCHS = study.best_params["epochs"]
+        # BATCH_SIZE = study.best_params["batch_size"]
+        # LEARNING_RATE = study.best_params["learning_rate"]
+        # WEIGHT_DECAY = study.best_params["weight_decay"]
+
+    # output
+    path = "tmp/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
+    rmse = np.average(np.array(rmse_list), axis=0)
+    rmse = list(map(lambda x: str(x), rmse))
+    rmse_list = list(map(lambda x: str(x), rmse_list))
+    accuracy = np.average(np.array(accuracy_list), axis=0)
+    accuracy = list(map(lambda x: str(x), accuracy))
+    accuracy_list = list(map(lambda x: str(x), accuracy_list))
+
+    with open(path, "a") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
+        for i in range(len(rmse_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
+        result.write("average,{}\n".format(",".join(rmse)))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
+        for i in range(len(accuracy_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
+        result.write("average,{}\n".format(",".join(accuracy)))
 
 if __name__ == "__main__":
 
@@ -390,8 +475,11 @@ if __name__ == "__main__":
     #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # our experiment
-    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
-    #reEvaluateTarget(SOURCE, TARGETs)
+    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    # reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
     #analysis(SOURCE, TARGETs)
+
+    print("test")
