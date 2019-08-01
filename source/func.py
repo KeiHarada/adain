@@ -526,7 +526,6 @@ def validate(model, station_valid, station_train):
                 x_local_seq = x_local_seq.to(device)
                 x_others_static = list(map(lambda x: x.to(device), x_others_static))
                 x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
-                print(type(x_local_seq))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
                 y = y.to("cpu")
@@ -569,6 +568,7 @@ def objective(trial):
                   inputDim_seq_others=inputDim["seq_others"])
 
     model = model.to(device)
+    print("model", type(model))
 
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
@@ -630,6 +630,7 @@ def objective(trial):
                 x_others_static = list(map(lambda x: x.to(device), x_others_static))
                 x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
                 y_label = y_label.to(device)
+                print("ylabel",type(y_label))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
 
