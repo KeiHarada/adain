@@ -1,6 +1,6 @@
 # to run on server
 import sys
-sys.path.append("/home")
+sys.path.append("/home/harada/Documents/WorkSpace/adain")
 
 import re
 import requests

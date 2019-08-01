@@ -1,6 +1,6 @@
 # to run on server
 import sys
-sys.path.append("/home")
+sys.path.append("/home/harada/Documents/WorkSpace/adain")
 
 import pickle
 import time
@@ -502,7 +502,7 @@ if __name__ == "__main__":
 
     # our experiment
     # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
     # reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)

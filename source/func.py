@@ -1,6 +1,6 @@
 # to run on server
 import sys
-sys.path.append("/home")
+sys.path.append("/home/harada/Documents/WorkSpace/adain")
 
 import pickle
 import torch
@@ -484,7 +484,7 @@ def validate(model, station_valid, station_train):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # the number to divide the whole of the test data into min-batches
-    divide_num = 5
+    divide_num = 10
 
     # for evaluation
     result = []
@@ -526,6 +526,7 @@ def validate(model, station_valid, station_train):
                 x_local_seq = x_local_seq.to(device)
                 x_others_static = list(map(lambda x: x.to(device), x_others_static))
                 x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
+                print(type(x_local_seq))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
                 y = y.to("cpu")
@@ -554,7 +555,7 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters
-    batch_size = 32
+    batch_size = 128
     epochs = 50
     lr = 0.001
     wd = 0.0
@@ -693,7 +694,7 @@ def evaluate(model_state_dict, station_train, station_test):
     model.eval()
 
     # the number to divide the whole of the test data into min-batches
-    divide_num = 50
+    divide_num = 10
 
     # for evaluation
     result = []
