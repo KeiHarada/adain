@@ -484,7 +484,7 @@ def validate(model, station_valid, station_train):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # the number to divide the whole of the test data into min-batches
-    divide_num = 50
+    divide_num = 5
 
     # for evaluation
     result = []
@@ -566,6 +566,8 @@ def objective(trial):
     model = ADAIN(inputDim_static=inputDim["static"],
                   inputDim_seq_local=inputDim["seq_local"],
                   inputDim_seq_others=inputDim["seq_others"])
+
+    model = model.to(device)
 
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)

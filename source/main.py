@@ -312,6 +312,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
 def analysis(source, targets):
     import pandas as pd
+    from sklearn.metrics import mean_squared_error
+    from source.utility import calc_correct
     from source.utility import data_interpolate
     import matplotlib.pyplot as plt
 
@@ -326,72 +328,101 @@ def analysis(source, targets):
     aqi_source = pd.read_csv("database/aqi/aqi_" + source + ".csv", dtype=dtype)
     df = data_interpolate(aqi_source[[model_attribute]])
     aqi_source = pd.concat([aqi_source.drop(aqi_attribute, axis=1), df], axis=1)
-    print("# of stations = {}".format(len(set(aqi_source["sid"]))))
+    # print("# of stations = {}".format(len(set(aqi_source["sid"]))))
     tmp = list()
     for i in range(len(x)-1):
         aqi = aqi_source[aqi_source[model_attribute] >= float(x[i])]
         aqi = aqi[aqi[model_attribute] < float(x[i+1])]
         tmp.append(len(aqi))
-    print(tmp)
+    # print(tmp)
     tmp = list(map(lambda a: a/sum(tmp), tmp))
-    print(tmp)
-    print(aqi_source.describe())
+    # print(tmp)
+    # print(aqi_source.describe())
     #pd.cut(aqi_source[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
     #plt.savefig("tmp/"+SOURCE+".pdf")
+
+    aqi = aqi_source[model_attribute].values
+    mean = np.mean(aqi)
     print("////// "+source+" //////")
 
+    rmse_s = list()
+    accuracy_s = list()
+
     for target in targets:
+
+        rmse_t = list()
+        accuracy_t = list()
 
         print("////// "+target+" //////")
         aqi_target = pd.read_csv("database/aqi/aqi_" + target + ".csv", dtype=dtype)
         df = data_interpolate(aqi_target[[model_attribute]])
         aqi_target = pd.concat([aqi_target.drop(aqi_attribute, axis=1), df], axis=1)
-        print("# of stations = {}".format(len(set(aqi_target["sid"]))))
+        # print("# of stations = {}".format(len(set(aqi_target["sid"]))))
         tmp = list()
         for i in range(len(x) - 1):
             aqi = aqi_target[aqi_target[model_attribute] >= float(x[i])]
             aqi = aqi[aqi[model_attribute] < float(x[i + 1])]
             tmp.append(len(aqi))
-        print(tmp)
+        # print(tmp)
         tmp = list(map(lambda a: a / sum(tmp), tmp))
-        print(tmp)
-        print(aqi_target.describe())
+        # print(tmp)
+        # print(aqi_target.describe())
         # pd.cut(aqi_target[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
         # plt.savefig("tmp/" + target + ".pdf")
         # print("----------------------")
-        # for i in range(5):
-        #
-        #     # train
-        #     train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
-        #                              +str(i).zfill(2)+"_trainset.pickle", "rb"))
-        #     # test: source
-        #     test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-        #                              +str(i).zfill(2)+"_testset_source.pickle", "rb"))
-        #     # test: target
-        #     test_t = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-        #                              +str(i).zfill(2)+"_testset_target.pickle", "rb"))
-        #
-        #
-        #     aqi = aqi_source[aqi_source["sid"].isin(train)]
-        #     print(train)
-        #     print(aqi.describe())
-        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-        #
-        #     aqi = aqi_source[aqi_source["sid"].isin(test_s)]
-        #     print(test_s)
-        #     print(aqi.describe())
-        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-        #
-        #     aqi = aqi_target[aqi_target["sid"].isin(test_t)]
-        #     print(test_t)
-        #     print(aqi.describe())
-        #     pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-        #
-        #     plt.show()
-        #     print("----------------------")
+        for i in range(5):
+
+            # train
+            train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
+                                     +str(i).zfill(2)+"_trainset.pickle", "rb"))
+            # test: source
+            test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
+                                     +str(i).zfill(2)+"_testset_source.pickle", "rb"))
+            # test: target
+            test_t = pickle.load(open("dataset/station_"+target+".pickle", "rb"))
+            random.shuffle(test_t)
+            test_t = test_t[:5]
+
+            # aqi = aqi_source[aqi_source["sid"].isin(train)]
+            # aqi = aqi[model_attribute].values
+            # seikai = np.full(len(aqi), mean)
+            # print(np.sqrt(mean_squared_error(aqi, seikai)))
+            # print(calc_correct(aqi, seikai) / len(aqi))
+            # print(train)
+            # print(aqi.describe())
+            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+
+            aqi = aqi_source[aqi_source["sid"].isin(test_s)]
+            aqi = aqi[model_attribute].values
+            seikai = np.full(len(aqi), mean)
+            rmse_s.append(np.sqrt(mean_squared_error(aqi, seikai)))
+            accuracy_s.append(calc_correct(aqi, seikai) / len(aqi))
+            print(np.sqrt(mean_squared_error(aqi, seikai)))
+            print(calc_correct(aqi, seikai) / len(aqi))
+            print("")
+            # print(test_s)
+            # print(aqi.describe())
+            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+
+            aqi = aqi_target[aqi_target["sid"].isin(test_t)]
+            aqi = aqi[model_attribute].values
+            seikai = np.full(len(aqi), mean)
+            rmse_t.append(np.sqrt(mean_squared_error(aqi, seikai)))
+            accuracy_t.append(calc_correct(aqi, seikai) / len(aqi))
+            print(np.sqrt(mean_squared_error(aqi, seikai)))
+            print(calc_correct(aqi, seikai) / len(aqi))
+            # print(test_t)
+            # print(aqi.describe())
+            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
+
+            plt.show()
+            print("----------------------")
+        print(np.mean(np.array(rmse_s)))
+        print(np.mean(np.array(accuracy_s)))
+        print("")
+        print(np.mean(np.array(rmse_t)))
+        print(np.mean(np.array(accuracy_t)))
         print("////// "+target+" //////")
-
-
 
 def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
@@ -403,78 +434,54 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
         start = time.time()
 
-        # to evaluate
-        rmse_tmp = list()
-        accuracy_tmp = list()
-
         # load train, test dataset
         path = "model/beijing2tianjin_pm25_{}_trainset.pickle".format(str(i).zfill(2))
         train = pickle.load(open(path, "rb"))
-        path = "model/beijing2tianjin_pm25_{}_testset_source.pickle".format(str(i).zfill(2))
-        beijing = pickle.load(open(path, "rb"))
-        path = "model/beijing2tianjin_pm25_{}_testset_target.pickle".format(str(i).zfill(2))
-        tianjin = pickle.load(open(path, "rb"))
-        path = "model/beijing2guangzhou_pm25_{}_testset_target.pickle".format(str(i).zfill(2))
-        guangzhou = pickle.load(open(path, "rb"))
+        guangzhou = pickle.load(open("dataset/station_guangzhou.pickle", "rb"))
+        random.shuffle(guangzhou)
+        guangzhou = guangzhou[:5]
+
+        print(len(guangzhou))
 
         # load model
         path = "model/beijing2tianjin_pm25_{}_model.pickle".format(str(i).zfill(2))
         model_state_dict = torch.load(path, map_location="cpu")
 
         # evaluate
-        print("* evaluate in " + SOURCE)
-        rmse, accuracy = evaluate(model_state_dict, train, beijing)
-        rmse_tmp.append(rmse)
-        accuracy_tmp.append(accuracy)
-
-        print("* evaluate in " + TARGETs[0])
-        rmse, accuracy = evaluate(model_state_dict, train, tianjin)
-        rmse_tmp.append(rmse)
-        accuracy_tmp.append(accuracy)
-
         print("* evaluate in " + TARGETs[1])
         rmse, accuracy = evaluate(model_state_dict, train, guangzhou)
-        rmse_tmp.append(rmse)
-        accuracy_tmp.append(accuracy)
-
-        rmse_list.append(rmse_tmp)
-        accuracy_list.append(accuracy_tmp)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
 
         # time point
         t = (time.time() - start) / (60 * 60)
         print("time = " + str(t) + " [hours]")
         print("---LOOP " + str(i).zfill(2) + "---")
 
-        # output results
-        # EPOCHS = study.best_params["epochs"]
-        # BATCH_SIZE = study.best_params["batch_size"]
-        # LEARNING_RATE = study.best_params["learning_rate"]
-        # WEIGHT_DECAY = study.best_params["weight_decay"]
-
     # output
     path = "tmp/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
-    rmse = np.average(np.array(rmse_list), axis=0)
-    rmse = list(map(lambda x: str(x), rmse))
+    rmse = np.average(np.array(rmse_list))
+    rmse = str(rmse)
     rmse_list = list(map(lambda x: str(x), rmse_list))
-    accuracy = np.average(np.array(accuracy_list), axis=0)
-    accuracy = list(map(lambda x: str(x), accuracy))
+    accuracy = np.average(np.array(accuracy_list))
+    accuracy = str(accuracy)
     accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
-    with open(path, "a") as result:
+    with open(path, "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,guangzhou\n")
         for i in range(len(rmse_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
-        result.write("average,{}\n".format(",".join(rmse)))
+            result.write("{},{}\n".format(str(i).zfill(2), rmse_list[i]))
+        result.write("average,{}\n".format(rmse))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,guangzhou\n")
         for i in range(len(accuracy_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
-        result.write("average,{}\n".format(",".join(accuracy)))
+            result.write("{},{}\n".format(str(i).zfill(2), accuracy_list[i]))
+        result.write("average,{}\n".format(accuracy))
 
 if __name__ == "__main__":
 
@@ -498,5 +505,5 @@ if __name__ == "__main__":
     # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    # reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
     # analysis(SOURCE, TARGETs)
