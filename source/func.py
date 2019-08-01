@@ -687,6 +687,7 @@ def evaluate(model_state_dict, station_train, station_test):
                   inputDim_seq_others=inputDim["seq_others"])
 
     model.load_state_dict(model_state_dict)
+    model = model.to(device)
 
     # evaluate mode
     model.eval()
