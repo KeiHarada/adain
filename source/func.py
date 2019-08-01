@@ -481,8 +481,6 @@ def loadData(sid_local, sid_others):
 
 def validate(model, station_valid, station_train):
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     # the number to divide the whole of the test data into min-batches
     divide_num = 10
 
@@ -521,14 +519,14 @@ def validate(model, station_valid, station_train):
                 x_others_seq = batch_others_seq[i]
                 y_label = batch_target[i]
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
+                # to GPU
+                x_local_static = x_local_static.cuda()
+                x_local_seq = x_local_seq.cuda()
+                x_others_static = list(map(lambda x: x.cuda(), x_others_static))
+                x_others_seq = list(map(lambda x: x.cuda(), x_others_seq))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-                y = y.to("cpu")
+                y = y.cpu()
 
                 # evaluate
                 y = list(map(lambda x: x[0], y.data.numpy()))
@@ -544,8 +542,6 @@ def validate(model, station_valid, station_train):
 
 
 def objective(trial):
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # hyper parameters
     # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512, 1024])
@@ -567,7 +563,7 @@ def objective(trial):
                   inputDim_seq_local=inputDim["seq_local"],
                   inputDim_seq_others=inputDim["seq_others"])
 
-    model = model.to(device)
+    model = model.cuda()
     print("model", type(model))
 
     # optimizer
@@ -624,12 +620,12 @@ def objective(trial):
                                           target,
                                           batch_size)
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
-                y_label = y_label.to(device)
+                # to GPU
+                x_local_static = x_local_static.cuda()
+                x_local_seq = x_local_seq.cuda()
+                x_others_static = list(map(lambda x: x.cuda(), x_others_static))
+                x_others_seq = list(map(lambda x: x.cuda(), x_others_seq))
+                y_label = y_label.cuda()
                 print("ylabel",type(y_label))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
@@ -689,7 +685,7 @@ def evaluate(model_state_dict, station_train, station_test):
                   inputDim_seq_others=inputDim["seq_others"])
 
     model.load_state_dict(model_state_dict)
-    model = model.to(device)
+    model = model.cuda()
 
     # evaluate mode
     model.eval()
@@ -735,14 +731,14 @@ def evaluate(model_state_dict, station_train, station_test):
                 x_others_seq = batch_others_seq[i]
                 y_label = batch_target[i]
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
+                # to GPU
+                x_local_static = x_local_static.cuda()
+                x_local_seq = x_local_seq.cuda()
+                x_others_static = list(map(lambda x: x.cuda(), x_others_static))
+                x_others_seq = list(map(lambda x: x.cuda(), x_others_seq))
 
                 y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-                y = y.to("cpu")
+                y = y.cpu()
 
                 # evaluate
                 y = list(map(lambda x: x[0], y.data.numpy()))
