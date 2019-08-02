@@ -8,6 +8,12 @@ class ADAIN(nn.Module):
     def __init__(self, inputDim_static, inputDim_seq_local, inputDim_seq_others):
         super(ADAIN, self).__init__()
 
+        # CPU or GPU
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+
         # drop out
         self.drop_lstm_local = nn.Dropout2d(p=0.3)
         self.drop_lstm_others = nn.Dropout2d(p=0.3)
@@ -22,26 +28,26 @@ class ADAIN(nn.Module):
         self.lstm_hidden = 300
 
         # NN layer
-        self.fc_basic = nn.Linear(inputDim_static, self.fc_basic_hidden).cuda()
+        self.fc_basic = nn.Linear(inputDim_static, self.fc_basic_hidden).to(device)
         # |- local
-        self.lstm1_local = nn.LSTM(inputDim_seq_local, self.lstm_hidden, batch_first=True).cuda()
-        self.lstm2_local = nn.LSTM(self.lstm_hidden, self.lstm_hidden, batch_first=True).cuda()
-        self.fc_joint1_local = nn.Linear(self.fc_basic_hidden + self.lstm_hidden, self.fc_joint_hidden).cuda()
-        self.fc_joint2_local = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden).cuda()
+        self.lstm1_local = nn.LSTM(inputDim_seq_local, self.lstm_hidden, batch_first=True).to(device)
+        self.lstm2_local = nn.LSTM(self.lstm_hidden, self.lstm_hidden, batch_first=True).to(device)
+        self.fc_joint1_local = nn.Linear(self.fc_basic_hidden + self.lstm_hidden, self.fc_joint_hidden).to(device)
+        self.fc_joint2_local = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden).to(device)
 
         # |- others
-        self.lstm1_others = nn.LSTM(inputDim_seq_others, self.lstm_hidden, batch_first=True).cuda()
-        self.lstm2_others = nn.LSTM(self.lstm_hidden, self.lstm_hidden, batch_first=True).cuda()
-        self.fc_joint1_others = nn.Linear(self.fc_basic_hidden + self.lstm_hidden, self.fc_joint_hidden).cuda()
-        self.fc_joint2_others = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden).cuda()
+        self.lstm1_others = nn.LSTM(inputDim_seq_others, self.lstm_hidden, batch_first=True).to(device)
+        self.lstm2_others = nn.LSTM(self.lstm_hidden, self.lstm_hidden, batch_first=True).to(device)
+        self.fc_joint1_others = nn.Linear(self.fc_basic_hidden + self.lstm_hidden, self.fc_joint_hidden).to(device)
+        self.fc_joint2_others = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden).to(device)
 
         # |- attention
-        self.attention1 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fc_joint_hidden + self.fc_joint_hidden).cuda()
-        self.attention2 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, 1).cuda()
+        self.attention1 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fc_joint_hidden + self.fc_joint_hidden).to(device)
+        self.attention2 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, 1).to(device)
 
         # |- fusion
-        self.fusion = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fc_joint_hidden + self.fc_joint_hidden).cuda()
-        self.output = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, 1).cuda()
+        self.fusion = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fc_joint_hidden + self.fc_joint_hidden).to(device)
+        self.output = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, 1).to(device)
 
 
     def forward(self, x_static_local, x_seq_local, x_static_others, x_seq_others, hidden0=None): # Noneは零ベクトルと解釈される
