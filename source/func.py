@@ -696,8 +696,10 @@ def objective(trial):
     logs = []
 
     # load data
+    print("data loading ...")
     trainData = loadTrainData(station_train)
     validData = loadTestData(station_valid, station_train)
+    print(print(Color.GREEN + "OK" + Color.END))
 
     for step in range(int(epochs)):
 
