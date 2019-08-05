@@ -697,9 +697,6 @@ def objective(trial):
     # load data
     trainData = loadTrainData(station_train)
     validData = loadTestData(station_valid, station_train)
-    # pickle.dump(trainData, open("tmp/trainData.pickle", "wb"))
-    # pickle.dump(trainData, open("tmp/validData.pickle", "wb"))
-    exit()
 
     for step in range(int(epochs)):
 
