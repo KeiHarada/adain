@@ -2,7 +2,7 @@ database/**/*.csv
 database/meteorology/unknown/*.csv
 dataset/*.pickle
 model/*.pickle
-rawdata/osm/**/*
+rawdata/osm/**/osm*
 rawdata/poi/*.csv
 rawdata/zheng2015/*.csv
 result/*.csv
