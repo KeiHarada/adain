@@ -504,23 +504,3 @@ if __name__ == "__main__":
     # our experiment
     makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
-
-    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    # reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
-    # analysis(SOURCE, TARGETs)
-
-    # a = [[["road"]],
-    #      [[["wt0"], ["wt1"]], [["wt1"], ["wt2"]], [["wt2"], ["wt3"]]],
-    #      [["road0"], ["road1"], ["road2"]],
-    #      [[[["0wt0"], ["0wt1"]], [["0wt1"], ["0wt2"]], [["0wt2"], ["0wt3"]]],
-    #       [[["1wt0"], ["1wt1"]], [["1wt1"], ["1wt2"]], [["1wt2"], ["1wt3"]]],
-    #       [[["2wt0"], ["2wt1"]], [["2wt1"], ["2wt2"]], [["2wt2"], ["2wt3"]]]],
-    #      [["at1"], ["at2"], ["at3"]]]
-    # from source.func import makeRandomBatch
-    # from source.func import makeTestBatch
-    # from pprint import pprint
-    # b = makeRandomBatch(a, batch_length=3, batch_size=3)
-    # pprint(b)
-
-    # c = makeTestBatch(a, batch_length=1)
-    # pprint(c)

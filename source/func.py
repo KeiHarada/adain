@@ -4,7 +4,9 @@ sys.path.append("/home/harada/Documents/WorkSpace/adain")
 sys.path.append("/home")
 
 import pickle
+import _pickle
 import torch
+import copy
 import numpy as np
 import pandas as pd
 from torch import nn
@@ -392,7 +394,7 @@ def makeTestBatch(item, batch_length):
             batch_local_seq.append(local_seq[offset + j])
             batch_target.append(target[offset + j])
             for k in range(len(others_static)):
-                batch_others_static[k].append(others_static[k])
+                batch_others_static[k].append(others_static[k][0])
                 batch_others_seq[k].append(others_seq[k][offset + j])
 
         batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
@@ -432,7 +434,7 @@ def makeRandomBatch(item, batch_length, batch_size):
             batch_local_seq.append(local_seq[idx])
             batch_target.append(target[idx])
             for k in range(len(batch_others_static)):
-                batch_others_static[k].append(others_static[k])
+                batch_others_static[k].append(others_static[k][0])
                 batch_others_seq[k].append(others_seq[k][idx])
 
         batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
@@ -505,13 +507,13 @@ def loadTrainData(station_train):
         others_seq = []
         for sid in station_others:
 
-            stat = staticData[sid]
+            stat = _pickle.loads(_pickle.dumps(staticData[sid], -1)) # _pickleを使った高速コピー
             stat[0].append(geo[sid]["distance"])
             stat[0].append(geo[sid]["angle"])
             others_static.append(stat)
 
-            m = meteorologyData[sid]
-            a = aqiData[sid]
+            m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1)) # _pickleを使った高速コピー
+            a = _pickle.loads(_pickle.dumps(aqiData[sid], -1)) # _pickleを使った高速コピー
             for i in range(len(m)):
                 for j in range(len(m[i])):
                     m[i][j] += a[i][j]
@@ -521,6 +523,7 @@ def loadTrainData(station_train):
         target = targetData[station_local]
 
         trainData.append((local_static, local_seq, others_static, others_seq, target))
+
 
     return trainData
 
@@ -593,13 +596,13 @@ def loadTestData(station_test, station_train):
             others_seq = []
             for sid in station_others:
 
-                stat = staticData[sid]
+                stat = _pickle.loads(_pickle.dumps(staticData[sid], -1))  # _pickleを使った高速コピー
                 stat[0].append(geo[sid]["distance"])
                 stat[0].append(geo[sid]["angle"])
                 others_static.append(stat)
 
-                m = meteorologyData[sid]
-                a = aqiData[sid]
+                m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
+                a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
                 for i in range(len(m)):
                     for j in range(len(m[i])):
                         m[i][j] += a[i][j]
@@ -662,8 +665,8 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 128
-    epochs = 50
+    batch_size = 32
+    epochs = 1
     lr = 0.001
     wd = 0.0
 
@@ -696,10 +699,10 @@ def objective(trial):
     logs = []
 
     # load data
-    print("data loading ...")
+    print("data loading ...", end="")
     trainData = loadTrainData(station_train)
     validData = loadTestData(station_valid, station_train)
-    print(print(Color.GREEN + "OK" + Color.END))
+    print(Color.GREEN + "OK" + Color.END)
 
     for step in range(int(epochs)):
 
@@ -709,7 +712,7 @@ def objective(trial):
         for item in trainData:
 
             running_loss = []
-            batch_length = len(item[0]) // batch_size
+            batch_length = len(item[4]) # len(item[4]): len(target) --> batch_size
 
             for itr in makeRandomBatch(item, batch_length, batch_size):
 
