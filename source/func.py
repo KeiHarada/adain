@@ -354,66 +354,96 @@ def makeDataset0(city_name, model_attribute, lstm_data_width):
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeTestBatch(local_static, local_seq, others_static, others_seq, target, divide_num):
-    batch_local_static = []
-    batch_local_seq = []
-    batch_others_static = []
-    batch_others_seq = []
-    batch_target = []
+def makeTestBatch(item, batch_length):
 
-    batch_size = len(local_seq) // divide_num
-    for i in range(divide_num):
-        if i == divide_num-1:
-            batch_local_static.append(torch.tensor([local_static[0]] * len(local_seq[i * batch_size:])))
-            batch_local_seq.append(torch.tensor(local_seq[i * batch_size:]))
-            batch_target.append(torch.tensor(target[i*batch_size:]))
-            batch_others_static_i = [[] for _ in range(len(others_static))]
-            batch_others_seq_i = [[] for _ in range(len(others_seq))]
-            for j in range(len(others_static)):
-                batch_others_static_i[j] = torch.tensor([others_static[j][0]] * len(local_seq[i * batch_size:]))
-                batch_others_seq_i[j] = torch.tensor(others_seq[j][i * batch_size:])
-            batch_others_static.append(batch_others_static_i)
-            batch_others_seq.append(batch_others_seq_i)
-        else:
-            batch_local_static.append(torch.tensor([local_static[0]] * batch_size))
-            batch_local_seq.append(torch.tensor(local_seq[i * batch_size: (i + 1) * batch_size]))
-            batch_target.append(torch.tensor(target[i*batch_size: (i+1)*batch_size]))
-            batch_others_static_i = [[] for _ in range(len(others_static))]
-            batch_others_seq_i = [[] for _ in range(len(others_seq))]
-            for j in range(len(others_static)):
-                batch_others_static_i[j] = torch.tensor([others_static[j][0]] * batch_size)
-                batch_others_seq_i[j] = torch.tensor(others_seq[j][i * batch_size: (i + 1) * batch_size])
-            batch_others_static.append(batch_others_static_i)
-            batch_others_seq.append(batch_others_seq_i)
+    '''
+    :param item:
+    :param batch_length:
+    :return: a list of batch
+    '''
 
+    # input
+    local_static, local_seq, others_static, others_seq, target = item
 
-    return batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target
+    # output
+    batch = list()
 
-def makeRandomBatch(local_static, local_seq, others_static, others_seq, target, batch_size):
-    batch_local_static = []
-    batch_local_seq = []
-    batch_others_static = [[] for _ in range(len(others_static))] # [[]]*len(n) >> [[], ..., []] だと同じ場所を参照する配列がn個できるので注意
-    batch_others_seq = [[] for _ in range(len(others_seq))]
-    batch_target = []
+    # running condition
+    if len(target) < batch_length:
+        exit("batch length is too large. it must be not more than %d" % (len(target)))
 
-    for _ in range(batch_size):
-        idx = np.random.randint(0, len(target) - 1)
-        batch_local_static.append(local_static[0])
-        batch_local_seq.append(local_seq[idx])
-        batch_target.append(target[idx])
-        for i in range(len(batch_others_static)):
-            batch_others_static[i].append(others_static[i][0])
-            batch_others_seq[i].append(others_seq[i][idx])
+    '''
+    a batch = (batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target)
+    '''
+    offset = 0
+    for i in range(batch_length):
 
-    batch_local_static = torch.tensor(batch_local_static)
-    batch_local_seq = torch.tensor(batch_local_seq)
-    batch_others_static = list(map(lambda x: torch.tensor(x), batch_others_static))
-    batch_others_seq = list(map(lambda x: torch.tensor(x), batch_others_seq))
-    batch_target = torch.tensor(batch_target)
+        batch_local_static = []
+        batch_local_seq = []
+        batch_others_static = [[] for _ in range(len(others_static))] # [[]]*len(n) >> [[], ..., []] だと同じ場所を参照する配列がn個できるので注意
+        batch_others_seq = [[] for _ in range(len(others_seq))]
+        batch_target = []
 
-    return batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target
+        batch_size = len(target) // batch_length
 
-def loadData(sid_local, sid_others):
+        for j in range(batch_size):
+            batch_local_static.append(local_static[0])
+            batch_local_seq.append(local_seq[offset + j])
+            batch_target.append(target[offset + j])
+            for k in range(len(others_static)):
+                batch_others_static[k].append(others_static[k])
+                batch_others_seq[k].append(others_seq[k][offset + j])
+
+        batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
+
+        offset += batch_size
+
+    return batch
+
+def makeRandomBatch(item, batch_length, batch_size):
+
+    '''
+    :param item: a set of (local_static, local_seq, others_static, others_seq, target)
+    :param batch_length:
+    :param batch_size:
+    :return: a list of batches
+    '''
+
+    # input
+    local_static, local_seq, others_static, others_seq, target = item
+
+    # output
+    batch = list()
+    '''
+    a batch = (batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target)
+    '''
+    for i in range(batch_length):
+
+        batch_local_static = []
+        batch_local_seq = []
+        batch_others_static = [[] for _ in range(len(others_static))] # [[]]*len(n) >> [[], ..., []] だと同じ場所を参照する配列がn個できるので注意
+        batch_others_seq = [[] for _ in range(len(others_seq))]
+        batch_target = []
+
+        for j in range(batch_size):
+            idx = np.random.randint(0, len(target) - 1)
+            batch_local_static.append(local_static[0])
+            batch_local_seq.append(local_seq[idx])
+            batch_target.append(target[idx])
+            for k in range(len(batch_others_static)):
+                batch_others_static[k].append(others_static[k])
+                batch_others_seq[k].append(others_seq[k][idx])
+
+        batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
+
+    return batch
+
+def loadTrainData(station_train):
+
+    '''
+    :param station_train): a list of station ids
+    :return: a list of trainData
+    '''
 
     # raw data
     stationData = pickle.load(open("dataset/stationData.pickle", "rb"))
@@ -422,119 +452,197 @@ def loadData(sid_local, sid_others):
     aqiData = pickle.load(open("dataset/aqiData.pickle", "rb"))
     targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
 
-    # local
-    train_local_static = [staticData[sid_local][0] + [0, 0]]
-    train_local_seq = meteorologyData[sid_local]
+    # output
+    trainData = list()
 
-    # lat, lon of local station
-    lat_local = float(stationData[stationData["sid"] == sid_local]["lat"])
-    lon_local = float(stationData[stationData["sid"] == sid_local]["lon"])
+    # make a list of train data
+    '''
+    a train data = (local_static, local_seq, others_static, others_seq, target)
+    '''
+    for station_local in station_train:
 
-    # distance and angle data
-    distance = list()
-    angle = list()
-    for sid in sid_others:
-        lat = float(stationData[stationData["sid"] == sid]["lat"])
-        lon = float(stationData[stationData["sid"] == sid]["lon"])
-        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-        distance.append(result["distance"])
-        angle.append(result["azimuth1"])
+        station_others = station_train.copy()
+        station_others.remove(station_local)
 
-    # normalization
-    maximum = max(distance)
-    minimum = min(distance)
-    distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-    maximum = max(angle)
-    minimum = min(angle)
-    angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
+        # station local
+        local_static = [staticData[station_local][0] + [0, 0]]
+        local_seq = meteorologyData[station_local]
 
-    # make dictionary
-    geo = dict()
-    idx = 0
-    for sid in sid_others:
-        geo[sid] = dict()
-        geo[sid]["distance"] = distance[idx]
-        geo[sid]["angle"] = angle[idx]
-        idx += 1
+        # lat, lon of local station
+        lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
+        lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
 
-    # other stations
-    train_others_static = []
-    train_others_seq = []
-    for sid in sid_others:
+        # distance and angle data
+        distance = list()
+        angle = list()
+        for sid in station_others:
+            lat = float(stationData[stationData["sid"] == sid]["lat"])
+            lon = float(stationData[stationData["sid"] == sid]["lon"])
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            distance.append(result["distance"])
+            angle.append(result["azimuth1"])
 
-        stat = staticData[sid]
-        stat[0].append(geo[sid]["distance"])
-        stat[0].append(geo[sid]["angle"])
-        train_others_static.append(stat)
+        # normalization
+        maximum = max(distance)
+        minimum = min(distance)
+        distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
+        maximum = max(angle)
+        minimum = min(angle)
+        angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
 
-        m = meteorologyData[sid]
-        a = aqiData[sid]
-        for i in range(len(m)):
-            for j in range(len(m[i])):
-                m[i][j] += a[i][j]
-        train_others_seq.append(m)
+        # make dictionary "geo"
+        geo = dict()
+        idx = 0
+        for sid in station_others:
+            geo[sid] = dict()
+            geo[sid]["distance"] = distance[idx]
+            geo[sid]["angle"] = angle[idx]
+            idx += 1
 
-    # target
-    target = targetData[sid_local]
+        # station others
+        others_static = []
+        others_seq = []
+        for sid in station_others:
 
-    return train_local_static, train_local_seq, train_others_static, train_others_seq, target
+            stat = staticData[sid]
+            stat[0].append(geo[sid]["distance"])
+            stat[0].append(geo[sid]["angle"])
+            others_static.append(stat)
 
-def validate(model, station_valid, station_train):
+            m = meteorologyData[sid]
+            a = aqiData[sid]
+            for i in range(len(m)):
+                for j in range(len(m[i])):
+                    m[i][j] += a[i][j]
+            others_seq.append(m)
+
+        # target
+        target = targetData[station_local]
+
+        trainData.append((local_static, local_seq, others_static, others_seq, target))
+
+    return trainData
+
+def loadTestData(station_test, station_train):
+
+    '''
+    :param station_test:
+    :param station_train:
+    :return:
+    '''
+
+    # raw data
+    stationData = pickle.load(open("dataset/stationData.pickle", "rb"))
+    staticData = pickle.load(open("dataset/staticData.pickle", "rb"))
+    meteorologyData = pickle.load(open("dataset/meteorologyData.pickle", "rb"))
+    aqiData = pickle.load(open("dataset/aqiData.pickle", "rb"))
+    targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
+
+    # output
+    testData = list()
+
+    # make a list of train data
+    '''
+    a test data = (local_static, local_seq, others_static, others_seq, target)
+    '''
+    for station_local in station_test:
+
+        for station_removed in station_train:
+
+            station_others = station_train.copy()
+            station_others.remove(station_removed)
+
+            # station local
+            local_static = [staticData[station_local][0] + [0, 0]]
+            local_seq = meteorologyData[station_local]
+
+            # lat, lon of local station
+            lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
+            lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
+
+            # distance and angle data
+            distance = list()
+            angle = list()
+            for sid in station_others:
+                lat = float(stationData[stationData["sid"] == sid]["lat"])
+                lon = float(stationData[stationData["sid"] == sid]["lon"])
+                result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+                distance.append(result["distance"])
+                angle.append(result["azimuth1"])
+
+            # normalization
+            maximum = max(distance)
+            minimum = min(distance)
+            distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
+            maximum = max(angle)
+            minimum = min(angle)
+            angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
+
+            # make dictionary "geo"
+            geo = dict()
+            idx = 0
+            for sid in station_others:
+                geo[sid] = dict()
+                geo[sid]["distance"] = distance[idx]
+                geo[sid]["angle"] = angle[idx]
+                idx += 1
+
+            # station others
+            others_static = []
+            others_seq = []
+            for sid in station_others:
+
+                stat = staticData[sid]
+                stat[0].append(geo[sid]["distance"])
+                stat[0].append(geo[sid]["angle"])
+                others_static.append(stat)
+
+                m = meteorologyData[sid]
+                a = aqiData[sid]
+                for i in range(len(m)):
+                    for j in range(len(m[i])):
+                        m[i][j] += a[i][j]
+                others_seq.append(m)
+
+            # target
+            target = targetData[station_local]
+
+            testData.append((local_static, local_seq, others_static, others_seq, target))
+
+    return testData
+
+def validate(model, validData):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # the number to divide the whole of the test data into min-batches
-    divide_num = 10
 
     # for evaluation
     result = []
     result_label = []
 
-    for station_local in station_valid:
+    # the number to divide the whole of the test data into min-batches
+    batch_length = 10
 
-        for station_remove in station_train:
-            station_others = station_train.copy()
-            station_others.remove(station_remove)
+    for item in validData:
 
-            # get train and target data
-            test_local_static, \
-            test_local_seq, \
-            test_others_static, \
-            test_others_seq, \
-            target = loadData(station_local, station_others)
+        for itr in makeTestBatch(item, batch_length):
 
-            # divide the test data into some sub-data
-            batch_local_static, \
-            batch_local_seq, \
-            batch_others_static, \
-            batch_others_seq, \
-            batch_target = makeTestBatch(test_local_static,
-                                         test_local_seq,
-                                         test_others_static,
-                                         test_others_seq,
-                                         target, divide_num)
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = itr
 
-            for i in range(divide_num):
-                x_local_static = batch_local_static[i]
-                x_local_seq = batch_local_seq[i]
-                x_others_static = batch_others_static[i]
-                x_others_seq = batch_others_seq[i]
-                y_label = batch_target[i]
+            # to tensor
+            batch_local_static = torch.tensor(batch_local_static).to(device)
+            batch_local_seq = torch.tensor(batch_local_seq).to(device)
+            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
+            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+            pred = pred.to("cpu")
 
-                y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-                y = y.to("cpu")
-
-                # evaluate
-                y = list(map(lambda x: x[0], y.data.numpy()))
-                y_label = list(map(lambda x: x[0], y_label.data.numpy()))
-                result += y
-                result_label += y_label
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            result += pred
+            result_label += batch_target
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
@@ -542,18 +650,17 @@ def validate(model, station_valid, station_train):
 
     return rmse, accuracy
 
-
 def objective(trial):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # hyper parameters
+    # hyper parameters for tuning
     # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512, 1024])
     # epochs = trial.suggest_discrete_uniform("epochs", 1, 5, 1)
     # lr = trial.suggest_loguniform("learning_rate", 1e-5, 1e-1)
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
-    # hyper parameters
+    # hyper parameters for constance
     batch_size = 128
     epochs = 50
     lr = 0.001
@@ -567,8 +674,8 @@ def objective(trial):
                   inputDim_seq_local=inputDim["seq_local"],
                   inputDim_seq_others=inputDim["seq_others"])
 
+    # GPU or CPU
     model = model.to(device)
-    print("model", type(model))
 
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
@@ -576,86 +683,70 @@ def objective(trial):
     # evaluation function
     criterion = nn.MSELoss()
 
-    # training
+    # train data
     station_train = pickle.load(open("tmp/trainset.pickle", "rb"))
     station_valid = pickle.load(open("tmp/validset.pickle", "rb"))
 
     # initialize the early stopping object
-    patience = int(int(epochs)*0.2)
+    patience = 10
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     # log
     logs = []
 
+    # load data
+    trainData = loadTrainData(station_train)
+    validData = loadTestData(station_valid, station_train)
+    # pickle.dump(trainData, open("tmp/trainData.pickle", "wb"))
+    # pickle.dump(trainData, open("tmp/validData.pickle", "wb"))
+    exit()
+
     for step in range(int(epochs)):
 
         step_loss = []
 
-        for station_local in station_train:
+        # train
+        for item in trainData:
 
             running_loss = []
+            batch_length = len(item[0]) // batch_size
 
-            # divide stations into local and others
-            station_others = station_train.copy()
-            station_others.remove(station_local)
+            for itr in makeRandomBatch(item, batch_length, batch_size):
 
-            # get train and target data
-            train_local_static, \
-            train_local_seq, \
-            train_others_static, \
-            train_others_seq, \
-            target = loadData(station_local, station_others)
+                batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = itr
 
-            # training
-            train_data_size = len(train_local_seq)
-            iterations = train_data_size // batch_size
-            for _ in range(iterations):
-                optimizer.zero_grad()
+                # to tensor
+                batch_local_static = torch.tensor(batch_local_static).to(device)
+                batch_local_seq = torch.tensor(batch_local_seq).to(device)
+                batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
+                batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+                batch_target = torch.tensor(batch_target).to(device)
 
-                # make min-batch
-                x_local_static, \
-                x_local_seq, \
-                x_others_static, \
-                x_others_seq, \
-                y_label = makeRandomBatch(train_local_static,
-                                          train_local_seq,
-                                          train_others_static,
-                                          train_others_seq,
-                                          target,
-                                          batch_size)
+                # predict
+                pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
-                y_label = y_label.to(device)
-                print("ylabel",type(y_label))
-
-                y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-
-                loss = criterion(y, y_label)
+                loss = criterion(pred, batch_target)
                 loss.backward()
                 optimizer.step()
                 running_loss.append(np.sqrt(loss.item()))
 
             running_loss = np.average(running_loss)
             step_loss.append(running_loss)
-            print("\t|- local %d loss: %.10f" % (station_train.index(station_local) + 1, running_loss))
+            print("\t|- running loss %d: %.10f" % (running_loss))
 
         step_loss = np.average(step_loss)
         print("\t\t|- epoch %d loss: %.10f" % (step + 1, step_loss))
 
-        # validation
+        # validate
         model.eval()
-        rmse_valid, accuracy_valid = validate(model, station_valid, station_train)
+        rmse, accuracy = validate(model, validData)
         model.train()
-        log = {'epoch': step, 'validation rmse': rmse_valid, 'validation accuracy': accuracy_valid}
+        log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
         logs.append(log)
-        print("\t\t|- validation rmse: %.10f, validation accuracy: %.10f" % (rmse_valid, accuracy_valid))
+        print("\t\t|- validation rmse: %.10f, validation accuracy: %.10f" % (rmse, accuracy))
 
         # early stopping
-        early_stopping(rmse_valid, model)
+        early_stopping(rmse, model)
         if early_stopping.early_stop:
             print("\t\tEarly stopping")
             break
@@ -673,7 +764,7 @@ def objective(trial):
     with open("tmp/" + str(trial_num).zfill(4) + "_log.pickle", "wb") as pl:
         pickle.dump(logs, pl)
 
-    return rmse_valid
+    return rmse
 
 
 def evaluate(model_state_dict, station_train, station_test):
@@ -694,64 +785,38 @@ def evaluate(model_state_dict, station_train, station_test):
     # evaluate mode
     model.eval()
 
-    # the number to divide the whole of the test data into min-batches
-    divide_num = 10
-
     # for evaluation
     result = []
     result_label = []
 
-    itr = 0
-    ITR = len(station_test) * len(station_train) * divide_num
-    for station_local in station_test:
+    # the number to divide the whole of the test data into min-batches
+    batch_length = 10
 
-        for station_removed in station_train:
-            station_others = station_train.copy()
-            station_others.remove(station_removed)
+    # load data
+    testData = loadTestData(station_test, station_train)
 
-            # get train and target data
-            test_local_static, \
-            test_local_seq, \
-            test_others_static, \
-            test_others_seq, \
-            target = loadData(station_local, station_others)
+    for item in testData:
 
-            # divide the test data into some sub-data
-            batch_local_static, \
-            batch_local_seq, \
-            batch_others_static, \
-            batch_others_seq, \
-            batch_target = makeTestBatch(test_local_static,
-                                         test_local_seq,
-                                         test_others_static,
-                                         test_others_seq,
-                                         target,
-                                         divide_num)
+        for itr in makeTestBatch(item, batch_length):
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = itr
 
-            for i in range(divide_num):
-                x_local_static = batch_local_static[i]
-                x_local_seq = batch_local_seq[i]
-                x_others_static = batch_others_static[i]
-                x_others_seq = batch_others_seq[i]
-                y_label = batch_target[i]
+            # to tensor
+            batch_local_static = torch.tensor(batch_local_static).to(device)
+            batch_local_seq = torch.tensor(batch_local_seq).to(device)
+            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
+            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
 
-                # GPU or CPU
-                x_local_static = x_local_static.to(device)
-                x_local_seq = x_local_seq.to(device)
-                x_others_static = list(map(lambda x: x.to(device), x_others_static))
-                x_others_seq = list(map(lambda x: x.to(device), x_others_seq))
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+            pred = pred.to("cpu")
 
-                y = model(x_local_static, x_local_seq, x_others_static, x_others_seq)
-                y = y.to("cpu")
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            result += pred
+            result_label += batch_target
 
-                # evaluate
-                y = list(map(lambda x: x[0], y.data.numpy()))
-                y_label = list(map(lambda x: x[0], y_label.data.numpy()))
-                result += y
-                result_label += y_label
-                itr += 1
-
-        print("\t|- iteration %d / %d" % (itr, ITR))
+        print("\t|- iteration %d / %d" % (int(testData.index(item))+1, int(len(testData))))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))

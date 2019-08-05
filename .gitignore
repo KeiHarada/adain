@@ -10,6 +10,7 @@ log/*.csv
 tmp/*.pickle
 tmp/*.pdf
 tmp/*.csv
+tmp/*.txt
 source/__pycache__/*
 .git/
 .idea/
