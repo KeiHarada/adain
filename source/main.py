@@ -263,8 +263,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
     # WEIGHT_DECAY = study.best_params["weight_decay"]
 
     EPOCHS = 50
-    BATCH_SIZE = 32
-    LEARNING_RATE = 0.01
+    BATCH_SIZE = 256
+    LEARNING_RATE = 0.001
     WEIGHT_DECAY = 0.0
 
     path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
@@ -502,5 +502,5 @@ if __name__ == "__main__":
     #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # our experiment
-    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)

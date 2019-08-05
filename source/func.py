@@ -659,14 +659,14 @@ def objective(trial):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # hyper parameters for tuning
-    # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512, 1024])
+    # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512])
     # epochs = trial.suggest_discrete_uniform("epochs", 1, 5, 1)
     # lr = trial.suggest_loguniform("learning_rate", 1e-5, 1e-1)
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 32
-    epochs = 1
+    batch_size = 256
+    epochs = 50
     lr = 0.001
     wd = 0.0
 
@@ -708,8 +708,14 @@ def objective(trial):
 
         step_loss = []
 
+        running = 0
+        maximum = int(len(trainData))
+
         # train
         for item in trainData:
+
+            running +=1
+            print("\t|- running loss %d / %d : " % (running, maximum), end="")
 
             running_loss = []
             batch_length = len(item[4]) # len(item[4]): len(target) --> batch_size
@@ -735,18 +741,19 @@ def objective(trial):
 
             running_loss = np.average(running_loss)
             step_loss.append(running_loss)
-            print("\t|- running loss %d: %.10f" % (running_loss))
+            print("%.10f" % (running_loss))
 
         step_loss = np.average(step_loss)
         print("\t\t|- epoch %d loss: %.10f" % (step + 1, step_loss))
 
         # validate
+        print("\t\t|- validation : ", end="")
         model.eval()
         rmse, accuracy = validate(model, validData)
         model.train()
         log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
         logs.append(log)
-        print("\t\t|- validation rmse: %.10f, validation accuracy: %.10f" % (rmse, accuracy))
+        print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
 
         # early stopping
         early_stopping(rmse, model)
