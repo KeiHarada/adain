@@ -644,7 +644,7 @@ def validate(model, validData):
 
             # evaluate
             pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target))
             result += pred
             result_label += batch_target
 
@@ -822,7 +822,7 @@ def evaluate(model_state_dict, station_train, station_test):
 
             # evaluate
             pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target))
             result += pred
             result_label += batch_target
 
