@@ -802,11 +802,11 @@ def evaluate(model_state_dict, station_train, station_test):
     # the number to divide the whole of the test data into min-batches
     batch_length = 5
 
-    for s in station_test:
+    for station_test_sub in np.array_split(station_test, 2):
 
         # load data
         print("data loading ....")
-        testData = loadTestData(list(s), station_train)
+        testData = loadTestData(list(station_test_sub), station_train)
         print(Color.GREEN + "OK" + Color.END)
 
         for item in testData:
