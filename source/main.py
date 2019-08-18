@@ -163,13 +163,13 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
     print("# of test = "+str(TEST_NUM))
     print(aqiStatistics)
 
-    for i in range(LOOP):
+    for loop in range(LOOP):
 
         # to evaluate
         rmse_tmp = list()
         accuracy_tmp = list()
 
-        print("---LOOP " + str(i).zfill(2) + "---")
+        print("---LOOP " + str(loop).zfill(2) + "---")
         start = time.time()
 
         # shuffle for LOOP
@@ -207,33 +207,33 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
         # save best model
         model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "model", SOURCE)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
         with open(path, "wb") as pl:
             pickle.dump(model_state_dict, pl)
 
         # save dataset
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "train", SOURCE)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", SOURCE)
         with open(path, "wb") as pl:
             pickle.dump(train, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "valid", SOURCE)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", SOURCE)
         with open(path, "wb") as pl:
             pickle.dump(valid, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "test", SOURCE)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", SOURCE)
         with open(path, "wb") as pl:
             pickle.dump(test_source, pl)
         for i in range(len(test_target)):
-            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "test", TARGETs[i])
+            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGETs[i])
             with open(path, "wb") as pl:
                 pickle.dump(test_target[i], pl)
 
         # save train log
         with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
             log = pickle.load(pl)
-            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(i).zfill(2), "log", SOURCE)
+            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(loop).zfill(2), "log", SOURCE)
             log.to_csv(path, index=False)
 
         # load best model
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(i).zfill(2), "model", SOURCE)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
         model_state_dict = pickle.load(open(path, "rb"))
 
         # evaluate
@@ -254,7 +254,7 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
         # time point
         t = (time.time() - start) / (60 * 60)
         print("time = " + str(t) + " [hours]")
-        print("---LOOP " + str(i).zfill(2) + "---")
+        print("---LOOP " + str(loop).zfill(2) + "---")
 
     # output results
     # EPOCHS = study.best_params["epochs"]
@@ -431,58 +431,74 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
     rmse_list = list()
     accuracy_list = list()
 
-    for i in range(LOOP):
+    for loop in [1]:
 
         start = time.time()
 
-        # load train, test dataset
-        path = "model/beijing2tianjin_pm25_{}_trainset.pickle".format(str(i).zfill(2))
-        train = pickle.load(open(path, "rb"))
-        guangzhou = pickle.load(open("dataset/station_guangzhou.pickle", "rb"))
-        random.shuffle(guangzhou)
-        guangzhou = guangzhou[:5]
+        # to evaluate
+        rmse_tmp = list()
+        accuracy_tmp = list()
 
-        print(len(guangzhou))
+        # load train, test dataset
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", SOURCE)
+        train = pickle.load(open(path, "rb"))
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", SOURCE)
+        test_source = pickle.load(open(path, "rb"))
+        test_target = []
+        for i in range(len(TARGETs)):
+            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGETs[i])
+            test_target.append(pickle.load(open(path, "rb")))
 
         # load model
-        path = "model/beijing2tianjin_pm25_{}_model.pickle".format(str(i).zfill(2))
-        model_state_dict = torch.load(path, map_location="cpu")
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
+        model_state_dict = pickle.load(open(path, "rb"))
 
         # evaluate
-        print("* evaluate in " + TARGETs[1])
-        rmse, accuracy = evaluate(model_state_dict, train, guangzhou)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
+        print("* evaluate in " + SOURCE)
+        rmse, accuracy = evaluate(model_state_dict, train, test_source)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        for i in range(len(test_target)):
+            print("* evaluate in " + TARGETs[i])
+            rmse, accuracy = evaluate(model_state_dict, train, test_target[i])
+            rmse_tmp.append(rmse)
+            accuracy_tmp.append(accuracy)
+
+        rmse_list.append(rmse_tmp)
+        accuracy_list.append(accuracy_tmp)
 
         # time point
         t = (time.time() - start) / (60 * 60)
         print("time = " + str(t) + " [hours]")
-        print("---LOOP " + str(i).zfill(2) + "---")
+        print("---LOOP " + str(loop).zfill(2) + "---")
 
-    # output
-    path = "tmp/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
-    rmse = np.average(np.array(rmse_list))
-    rmse = str(rmse)
+
+
+    # to output
+    path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
+    rmse = np.average(np.array(rmse_list), axis=0)
+    rmse = list(map(lambda x: str(x), rmse))
     rmse_list = list(map(lambda x: str(x), rmse_list))
-    accuracy = np.average(np.array(accuracy_list))
-    accuracy = str(accuracy)
+    accuracy = np.average(np.array(accuracy_list), axis=0)
+    accuracy = list(map(lambda x: str(x), accuracy))
     accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
-    with open(path, "w") as result:
+    with open(path, "a") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
-        result.write("model,guangzhou\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
         for i in range(len(rmse_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), rmse_list[i]))
-        result.write("average,{}\n".format(rmse))
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
+        result.write("average,{}\n".format(",".join(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
-        result.write("model,guangzhou\n")
+        result.write("model,{}\n".format(",".join(TARGETs)))
         for i in range(len(accuracy_list)):
-            result.write("{},{}\n".format(str(i).zfill(2), accuracy_list[i]))
-        result.write("average,{}\n".format(accuracy))
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
+        result.write("average,{}\n".format(",".join(accuracy)))
 
 if __name__ == "__main__":
 
@@ -502,5 +518,7 @@ if __name__ == "__main__":
     #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # our experiment
-    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+
+    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
