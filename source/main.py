@@ -473,8 +473,6 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
         print("time = " + str(t) + " [hours]")
         print("---LOOP " + str(loop).zfill(2) + "---")
 
-
-
     # to output
     path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
     rmse = np.average(np.array(rmse_list), axis=0)
@@ -484,7 +482,7 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
     accuracy = list(map(lambda x: str(x), accuracy))
     accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
-    with open(path, "a") as result:
+    with open(path, "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
