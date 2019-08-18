@@ -803,7 +803,9 @@ def evaluate(model_state_dict, station_train, station_test):
     batch_length = 10
 
     # load data
+    print("data loading ....", end="")
     testData = loadTestData(station_test, station_train)
+    print(Color.GREEN + "OK" + Color.END)
 
     for item in testData:
 
