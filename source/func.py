@@ -800,7 +800,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # the number to divide the whole of the test data into min-batches
-    batch_length = 10
+    batch_length = 2
 
     # load data
     testData = loadTestData(station_test, station_train)
