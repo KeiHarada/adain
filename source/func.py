@@ -802,7 +802,7 @@ def evaluate(model_state_dict, station_train, station_test):
     # the number to divide the whole of the test data into min-batches
     batch_length = 5
 
-    for station_test_sub in np.array_split(station_test, 2):
+    for station_test_sub in np.array_split(station_test, 5):
 
         # load data
         print("data loading ....")
@@ -831,6 +831,9 @@ def evaluate(model_state_dict, station_train, station_test):
                 result_label += batch_target
 
             print("\t|- iteration %d / %d" % (int(testData.index(item))+1, int(len(testData))))
+
+        # GC
+        del testData
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
