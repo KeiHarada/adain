@@ -862,7 +862,7 @@ def validate(model, validData):
     result_label = []
 
     # the number to divide the whole of the test data into min-batches
-    batch_length = 10
+    batch_length = 5
 
     for item in validData:
 
@@ -904,7 +904,7 @@ def objective(trial):
 
     # hyper parameters for constance
     batch_size = 256
-    epochs = 50
+    epochs = 100
     lr = 0.01
     wd = 0.0
 
@@ -930,7 +930,7 @@ def objective(trial):
     station_valid = pickle.load(open("tmp/validset.pickle", "rb"))
 
     # initialize the early stopping object
-    patience = 10
+    patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     # log
@@ -1038,7 +1038,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # the number to divide the whole of the test data into min-batches
-    batch_length = 10
+    batch_length = 5
 
     for station_test_sub in np.array_split(station_test, 5):
 
