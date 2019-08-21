@@ -511,7 +511,6 @@ if __name__ == "__main__":
     ATTRIBUTE = "pm25"
     SOURCE = "beijing"
     TARGETs = ["tianjin", "guangzhou", "shenzhen"]
-    TARGETs = ["tianjin"]
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
