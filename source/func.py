@@ -29,6 +29,215 @@ from source.utility import EarlyStopping
 from source.utility import get_activation
 from source.utility import get_optimizer
 
+def makeDataset1_short(source_city, target_cities, model_attribute, lstm_data_width):
+    '''
+    :param source_city:
+    :param target_cities (list):
+    :param model_attribute:
+    :param lstm_data_width:
+    :return:
+    '''
+
+    data_length = 24 * 30
+
+    print("dataset ... ", end="")
+
+    '''
+    station data
+    '''
+    source = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
+    with open("dataset/station_"+source_city+".pickle", "wb") as pl:
+        pickle.dump(list(source["sid"]), pl)
+
+    for target_city in target_cities:
+        target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
+        with open("dataset/station_"+target_city+".pickle", "wb") as pl:
+            pickle.dump(list(target["sid"]), pl)
+
+        if target_city == target_cities[0]:
+            station_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            station_raw = pd.concat([station_raw, target], ignore_index=True)
+
+    station_all = list(station_raw["sid"])
+
+    '''
+    road data
+    '''
+    road_attribute = ["motorway", "trunk", "others"]
+    dtype = {att: "float" for att in road_attribute}
+    dtype["sid"] = "object"
+
+    source = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
+    df = normalization(source[road_attribute])
+    source = pd.concat([source.drop(road_attribute, axis=1), df], axis=1)
+
+    for target_city in target_cities:
+        target = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
+        df = normalization(target[road_attribute])
+        target = pd.concat([target.drop(road_attribute, axis=1), df], axis=1)
+
+        if target_city == target_cities[0]:
+            road_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            road_raw = pd.concat([road_raw, target], ignore_index=True)
+
+    '''
+    meteorology data
+    '''
+    meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
+    dtype = {att: "float" for att in meteorology_attribute}
+    dtype["did"], dtype["time"] = "object", "object"
+
+    # source city
+    source = pd.read_csv("database/meteorology/meteorology_" + source_city + ".csv", dtype=dtype)
+    meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+    df = normalization(data_interpolate(source[meteorology_attribute]))
+    source = pd.concat([source.drop(meteorology_attribute, axis=1), df], axis=1)
+
+    df, columns = weather_onehot(source["weather"])
+    source = pd.concat([source.drop(["weather"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    df, columns = winddirection_onehot(source["wind_direction"])
+    source = pd.concat([source.drop(["wind_direction"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    # target cities
+    for target_city in target_cities:
+        target = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
+        meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+        df = normalization(data_interpolate(target[meteorology_attribute]))
+        target = pd.concat([target.drop(meteorology_attribute, axis=1), df], axis=1)
+
+        df, columns = weather_onehot(target["weather"])
+        target = pd.concat([target.drop(["weather"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
+        df, columns = winddirection_onehot(target["wind_direction"])
+        target = pd.concat([target.drop(["wind_direction"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
+        if target_city == target_cities[0]:
+            meteorology_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            meteorology_raw = pd.concat([meteorology_raw, target], ignore_index=True)
+
+    '''
+    aqi data
+    '''
+    aqi_attribute = ["pm25", "pm10", "no2", "co", "o3", "so2"]
+    dtype = {att: "float" for att in aqi_attribute}
+    dtype["sid"], dtype["time"] = "object", "object"
+
+    source = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
+    df = data_interpolate(source[[model_attribute]])
+    source = pd.concat([source.drop(aqi_attribute, axis=1), df], axis=1)
+
+    for target_city in target_cities:
+        target = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
+        df = data_interpolate(target[[model_attribute]])
+        target = pd.concat([target.drop(aqi_attribute, axis=1), df], axis=1)
+
+        if target_city == target_cities[0]:
+            aqi_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            aqi_raw = pd.concat([aqi_raw, target], ignore_index=True)
+
+    with open("dataset/aqiStatistics.pickle", "wb") as pl:
+        pickle.dump(aqi_raw.describe(), pl)
+
+    '''
+    make dataset
+    '''
+    staticData, seqData_m, seqData_a, targetData = dict(), dict(), dict(), dict()
+    for sid in station_all:
+
+        '''
+        static data
+            * road network data
+            * poi (TODO)
+
+        format
+            r = [motorway, trunk, others]
+            X = [ r ]
+        '''
+        recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
+        staticData[sid] = [recode]
+
+        '''
+        sequence data
+            * meteorological data
+            * aqi data
+
+        format
+            r_t = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
+            R_p = [r_t, ..., r_t+p]
+            X = [ R_p, R_p+1, ..., R_n ]
+
+        format
+            r_t = ["pm25" or  "pm10" or "no2" or "co" or "o3" or "so2"]
+            R_p = [r_t, ..., r_t+p]
+            X = [ R_p, R_p+1, ..., R_n ]
+        '''
+        did = list(station_raw[station_raw["sid"] == sid]["did"])[0]
+        meteorology_data = {att: get_meteorology_series(data=meteorology_raw, did=did, attribute=att)
+                            for att in meteorology_attribute}
+        aqi_data = get_aqi_series(data=aqi_raw, sid=sid, attribute=model_attribute)
+
+        seqData_m[sid] = []
+        seqData_a[sid] = []
+        terminal = data_length
+        start = 0
+        end = lstm_data_width
+        while end <= terminal:
+            recode_m_p = []
+            recode_a_p = []
+            for t in range(start, end):
+                recode_m_t = []
+                for att in meteorology_attribute:
+                    recode_m_t.append(meteorology_data[att][t])
+                recode_m_p.append(recode_m_t)
+                recode_a_p.append([aqi_data[t]])
+            seqData_m[sid].append(recode_m_p)
+            seqData_a[sid].append(recode_a_p)
+            start += 1
+            end += 1
+
+        '''
+        target data
+            * aqi data
+
+        format
+            aqi = "pm25" or  "pm10" or "no2" or "co" or "o3" or "so2"
+            X = [ [aqi_p], [aqi_p+1], ..., [aqi_n] ]
+        '''
+        targetData[sid] = []
+        for t in range(lstm_data_width - 1, data_length):
+            targetData[sid].append([aqi_data[t]])
+
+    # saving
+    with open("dataset/dataDim.pickle", "wb") as pl:
+        dc = {"road": len(road_attribute),
+              "meteorology": len(meteorology_attribute)}
+        pickle.dump(dc, pl)
+
+    with open("dataset/stationData.pickle", "wb") as pl:
+        pickle.dump(station_raw, pl)
+
+    with open("dataset/staticData.pickle", "wb") as pl:
+        pickle.dump(staticData, pl)
+
+    with open("dataset/meteorologyData.pickle", "wb") as pl:
+        pickle.dump(seqData_m, pl)
+
+    with open("dataset/aqiData.pickle", "wb") as pl:
+        pickle.dump(seqData_a, pl)
+
+    with open("dataset/targetData.pickle", "wb") as pl:
+        pickle.dump(targetData, pl)
+
+    print(Color.GREEN + "OK" + Color.END)
 
 def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width):
     '''
@@ -52,6 +261,7 @@ def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width):
         target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
         with open("dataset/station_"+target_city+".pickle", "wb") as pl:
             pickle.dump(list(target["sid"]), pl)
+
         if target_city == target_cities[0]:
             station_raw = pd.concat([source, target], ignore_index=True)
         else:
@@ -65,15 +275,20 @@ def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width):
     road_attribute = ["motorway", "trunk", "others"]
     dtype = {att: "float" for att in road_attribute}
     dtype["sid"] = "object"
+
     source = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
+    df = normalization(source[road_attribute])
+    source = pd.concat([source.drop(road_attribute, axis=1), df], axis=1)
+
     for target_city in target_cities:
         target = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
+        df = normalization(target[road_attribute])
+        target = pd.concat([target.drop(road_attribute, axis=1), df], axis=1)
+
         if target_city == target_cities[0]:
             road_raw = pd.concat([source, target], ignore_index=True)
         else:
             road_raw = pd.concat([road_raw, target], ignore_index=True)
-    df = normalization(road_raw[road_attribute])
-    road_raw = pd.concat([road_raw.drop(road_attribute, axis=1), df], axis=1)
 
     '''
     meteorology data
@@ -81,38 +296,61 @@ def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width):
     meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
     dtype = {att: "float" for att in meteorology_attribute}
     dtype["did"], dtype["time"] = "object", "object"
+
+    # source city
     source = pd.read_csv("database/meteorology/meteorology_" + source_city + ".csv", dtype=dtype)
+    meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+    df = normalization(data_interpolate(source[meteorology_attribute]))
+    source = pd.concat([source.drop(meteorology_attribute, axis=1), df], axis=1)
+
+    df, columns = weather_onehot(source["weather"])
+    source = pd.concat([source.drop(["weather"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    df, columns = winddirection_onehot(source["wind_direction"])
+    source = pd.concat([source.drop(["wind_direction"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    # target cities
     for target_city in target_cities:
         target = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
+        meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+        df = normalization(data_interpolate(target[meteorology_attribute]))
+        target = pd.concat([target.drop(meteorology_attribute, axis=1), df], axis=1)
+
+        df, columns = weather_onehot(target["weather"])
+        target = pd.concat([target.drop(["weather"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
+        df, columns = winddirection_onehot(target["wind_direction"])
+        target = pd.concat([target.drop(["wind_direction"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
         if target_city == target_cities[0]:
             meteorology_raw = pd.concat([source, target], ignore_index=True)
         else:
             meteorology_raw = pd.concat([meteorology_raw, target], ignore_index=True)
-    meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
-    df = normalization(data_interpolate(meteorology_raw[meteorology_attribute]))
-    meteorology_raw = pd.concat([meteorology_raw.drop(meteorology_attribute, axis=1), df], axis=1)
-    df, columns = weather_onehot(meteorology_raw["weather"])
-    meteorology_raw = pd.concat([meteorology_raw.drop(["weather"], axis=1), df], axis=1)
-    meteorology_attribute += columns
-    df, columns = winddirection_onehot(meteorology_raw["wind_direction"])
-    meteorology_raw = pd.concat([meteorology_raw.drop(["wind_direction"], axis=1), df], axis=1)
-    meteorology_attribute += columns
-
     '''
     aqi data
     '''
     aqi_attribute = ["pm25", "pm10", "no2", "co", "o3", "so2"]
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
+
     source = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
+    df = data_interpolate(source[[model_attribute]])
+    source = pd.concat([source.drop(aqi_attribute, axis=1), df], axis=1)
+
     for target_city in target_cities:
         target = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
+        df = data_interpolate(target[[model_attribute]])
+        target = pd.concat([target.drop(aqi_attribute, axis=1), df], axis=1)
+
         if target_city == target_cities[0]:
             aqi_raw = pd.concat([source, target], ignore_index=True)
         else:
             aqi_raw = pd.concat([aqi_raw, target], ignore_index=True)
-    df = data_interpolate(aqi_raw[[model_attribute]])
-    aqi_raw = pd.concat([aqi_raw.drop(aqi_attribute, axis=1), df], axis=1)
+
     with open("dataset/aqiStatistics.pickle", "wb") as pl:
         pickle.dump(aqi_raw.describe(), pl)
 
@@ -667,7 +905,7 @@ def objective(trial):
     # hyper parameters for constance
     batch_size = 256
     epochs = 50
-    lr = 0.001
+    lr = 0.01
     wd = 0.0
 
     # input dimension
@@ -718,7 +956,7 @@ def objective(trial):
             print("\t|- running loss %d / %d : " % (running, maximum), end="")
 
             running_loss = []
-            batch_length = len(item[4]) # len(item[4]): len(target) --> batch_size
+            batch_length = int(len(item[4])) // batch_size # len(item[4]): len(target)
 
             for itr in makeRandomBatch(item, batch_length, batch_size):
 
@@ -800,12 +1038,12 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # the number to divide the whole of the test data into min-batches
-    batch_length = 5
+    batch_length = 10
 
     for station_test_sub in np.array_split(station_test, 5):
 
         # load data
-        print("data loading ....")
+        print("data loading ....", end="")
         testData = loadTestData(list(station_test_sub), station_train)
         print(Color.GREEN + "OK" + Color.END)
 

@@ -12,6 +12,7 @@ import numpy as np
 # from my library
 from source.func import makeDataset0
 from source.func import makeDataset1
+from source.func import makeDataset1_short
 from source.func import objective
 from source.func import evaluate
 from source.utility import Color
@@ -161,7 +162,6 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
     print("# of train = "+str(TRAIN_NUM))
     print("# of valid = "+str(VAlID_NUM))
     print("# of test = "+str(TEST_NUM))
-    print(aqiStatistics)
 
     for loop in range(LOOP):
 
@@ -262,9 +262,9 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
     # LEARNING_RATE = study.best_params["learning_rate"]
     # WEIGHT_DECAY = study.best_params["weight_decay"]
 
-    EPOCHS = 50
+    EPOCHS = 1
     BATCH_SIZE = 256
-    LEARNING_RATE = 0.001
+    LEARNING_RATE = 0.01
     WEIGHT_DECAY = 0.0
 
     path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
@@ -284,29 +284,33 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
                      "LEARNING_RATE = " + str(LEARNING_RATE) + "\n" +
                      "WEIGHT_DECAY = " + str(WEIGHT_DECAY) + "\n" +
                      "--------------------------------------------\n")
-
-    aqiStatistics.to_csv(path, mode="a")
-
     # to output
     rmse = np.average(np.array(rmse_list), axis=0)
     rmse = list(map(lambda x: str(x), rmse))
-    rmse_list = list(map(lambda x: str(x), rmse_list))
+    tmp = rmse_list.copy()
+    rmse_list = []
+    for tmp_i in tmp:
+        rmse_list.append(list(map(lambda x: str(x), tmp_i)))
+
     accuracy = np.average(np.array(accuracy_list), axis=0)
     accuracy = list(map(lambda x: str(x), accuracy))
-    accuracy_list = list(map(lambda x: str(x), accuracy_list))
+    tmp = accuracy_list.copy()
+    accuracy_list = []
+    for tmp_i in tmp:
+        accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
 
     with open(path, "a") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
         for i in range(len(rmse_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
         result.write("average,{}\n".format(",".join(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
         for i in range(len(accuracy_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
         result.write("average,{}\n".format(",".join(accuracy)))
@@ -431,7 +435,7 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
     rmse_list = list()
     accuracy_list = list()
 
-    for loop in [1]:
+    for loop in range(LOOP):
 
         start = time.time()
 
@@ -477,23 +481,26 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
     path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
     rmse = np.average(np.array(rmse_list), axis=0)
     rmse = list(map(lambda x: str(x), rmse))
-    rmse_list = list(map(lambda x: str(x), rmse_list))
+    tmp = rmse_list.copy()
+    rmse_list = []
+    for tmp_i in tmp:
+        rmse_list.append(list(map(lambda x: str(x), tmp_i)))
     accuracy = np.average(np.array(accuracy_list), axis=0)
     accuracy = list(map(lambda x: str(x), accuracy))
     accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
-    with open(path, "w") as result:
+    with open(path, "a") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
         for i in range(len(rmse_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
         result.write("average,{}\n".format(",".join(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
-        result.write("model,{}\n".format(",".join(TARGETs)))
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
         for i in range(len(accuracy_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
         result.write("average,{}\n".format(",".join(accuracy)))
@@ -503,7 +510,7 @@ if __name__ == "__main__":
 
     ATTRIBUTE = "pm25"
     SOURCE = "beijing"
-    TARGETs = ["tianjin", "guangzhou"]
+    TARGETs = ["tianjin", "guangzhou", "shenzhen"]
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
@@ -516,7 +523,8 @@ if __name__ == "__main__":
     #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
     # our experiment
-    # makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    # experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    #makeDataset1_short(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
-    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
