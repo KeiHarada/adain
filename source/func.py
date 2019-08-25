@@ -1079,3 +1079,79 @@ def evaluate(model_state_dict, station_train, station_test):
     print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
 
     return rmse, accuracy
+
+def re_evaluate(model_state_dict, station_train, station_test, loop):
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # input dimension
+    inputDim = pickle.load(open("model/inputDim.pickle", "rb"))
+
+    # model
+    model = ADAIN(inputDim_static=inputDim["static"],
+                  inputDim_seq_local=inputDim["seq_local"],
+                  inputDim_seq_others=inputDim["seq_others"])
+
+    model.load_state_dict(model_state_dict)
+    model = model.to(device)
+
+    # evaluate mode
+    model.eval()
+
+    # for evaluation
+    result = []
+    result_label = []
+
+    # the number to divide the whole of the test data into min-batches
+    batch_length = 5
+
+    for station_test_sub in np.array_split(station_test, 5):
+
+        # load data
+        print("data loading ....", end="")
+        testData = loadTestData(list(station_test_sub), station_train)
+        print(Color.GREEN + "OK" + Color.END)
+
+        for item in testData:
+
+            for itr in makeTestBatch(item, batch_length):
+                batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = itr
+
+                # to tensor
+                batch_local_static = torch.tensor(batch_local_static).to(device)
+                batch_local_seq = torch.tensor(batch_local_seq).to(device)
+                batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
+                batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+
+                # predict
+                pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+                pred = pred.to("cpu")
+
+                # evaluate
+                pred = list(map(lambda x: x[0], pred.data.numpy()))
+                batch_target = list(map(lambda x: x[0], batch_target))
+                result += pred
+                result_label += batch_target
+
+            print("\t|- iteration %d / %d" % (int(testData.index(item))+1, int(len(testData))))
+
+        # GC
+        del testData
+
+    with open("tmp/inferred_"+str(loop).zfill(2)+".csv", "w") as outfile:
+        outfile.write("y_inf,y_label")
+        for idx in range(len(result)):
+            outfile.write("{},{}\n".format(str(result[idx]), str(result_label[idx])))
+
+    with open("tmp/inferred_"+str(loop).zfill(2)+"_inf.pickle", "wb") as pl:
+        pickle.dump(result, pl)
+    
+    with open("tmp/inferred_"+str(loop).zfill(2)+"_label.pickle", "wb") as pl:
+        pickle.dump(result_label, pl)
+
+    # evaluation score
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+    print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+
+    return rmse, accuracy

@@ -15,6 +15,7 @@ from source.func import makeDataset1
 from source.func import makeDataset1_short
 from source.func import objective
 from source.func import evaluate
+from source.func import re_evaluate
 from source.utility import Color
 
 def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH):
@@ -459,7 +460,7 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
         # evaluate
         print("* evaluate in " + SOURCE)
-        rmse, accuracy = evaluate(model_state_dict, train, test_source)
+        rmse, accuracy = re_evaluate(model_state_dict, train, test_source, loop)
         rmse_tmp.append(rmse)
         accuracy_tmp.append(accuracy)
 
@@ -478,18 +479,22 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
         print("---LOOP " + str(loop).zfill(2) + "---")
 
     # to output
-    path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
+    path = "result/re_result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
     rmse = np.average(np.array(rmse_list), axis=0)
     rmse = list(map(lambda x: str(x), rmse))
     tmp = rmse_list.copy()
     rmse_list = []
     for tmp_i in tmp:
         rmse_list.append(list(map(lambda x: str(x), tmp_i)))
+
     accuracy = np.average(np.array(accuracy_list), axis=0)
     accuracy = list(map(lambda x: str(x), accuracy))
-    accuracy_list = list(map(lambda x: str(x), accuracy_list))
+    tmp = accuracy_list.copy()
+    accuracy_list = []
+    for tmp_i in tmp:
+        accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
 
-    with open(path, "a") as result:
+    with open(path, "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
@@ -524,7 +529,7 @@ if __name__ == "__main__":
 
     # our experiment
     #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    makeDataset1_short(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    #makeDataset1_short(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
+    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
 
-    #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
