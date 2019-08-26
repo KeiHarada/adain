@@ -12,13 +12,11 @@ import numpy as np
 # from my library
 from source.func import makeDataset0
 from source.func import makeDataset1
-from source.func import makeDataset1_short
 from source.func import objective
 from source.func import evaluate
 from source.func import re_evaluate
-from source.utility import Color
 
-def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH):
+def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
 
     # input dimension
     dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
@@ -36,26 +34,32 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_
     # to devide the dataset
     station_all = pickle.load(open("dataset/stationAll.pickle", "rb"))
     TRAIN_NUM = int(len(station_all) * TRAIN_RATE)
-    VARID_NUM = int(TRAIN_NUM * VALID_RATE)
-    if VARID_NUM == 0:
-        VARID_NUM = 1
-    TEST_NUM = len(station_all)-(TRAIN_NUM+VARID_NUM)
+    VALID_NUM = int(TRAIN_NUM * VALID_RATE)
+    if VALID_NUM < 2:
+        VALID_NUM = 2
+    TEST_NUM = len(station_all)-(TRAIN_NUM+VALID_NUM)
+
+    # statictics of dataset
+    print("# of train = "+str(TRAIN_NUM))
+    print("# of valid = "+str(VALID_NUM))
+    print("# of test = "+str(TEST_NUM))
 
     # to evaluate
     rmse_list = list()
     accuracy_list = list()
 
-    for i in range(LOOP):
-        print("---LOOP "+str(i).zfill(2)+"---")
+    for loop in range(LOOP):
+        print("---LOOP "+str(loop).zfill(2)+"---")
         start = time.time()
 
+        # train, valid, test sets
         stations = station_all.copy()
         random.shuffle(stations)
         train = stations[:TRAIN_NUM]
-        valid = stations[TRAIN_NUM:TRAIN_NUM+VARID_NUM]
-        test = stations[TRAIN_NUM+VARID_NUM:]
+        valid = stations[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
+        test = stations[TRAIN_NUM+VALID_NUM:]
 
-        # saving train, valid, test sets
+        # temporally save train, valid, test sets
         with open("tmp/trainset.pickle", "wb") as pl:
             pickle.dump(train, pl)
         with open("tmp/validset.pickle", "wb") as pl:
@@ -68,62 +72,77 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_
         print("* training ... ")
         study = optuna.create_study()
         study.optimize(objective, n_trials=TRIAL)
-        print(Color.GREEN + "OK" + Color.END)
+
+        # save best model
+        model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", CITY)
+        with open(path, "wb") as pl:
+            pickle.dump(model_state_dict, pl)
+
+        # save dataset
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", CITY)
+        with open(path, "wb") as pl:
+            pickle.dump(train, pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", CITY)
+        with open(path, "wb") as pl:
+            pickle.dump(valid, pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", CITY)
+        with open(path, "wb") as pl:
+            pickle.dump(test, pl)
+
+        # save train log
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
+            log = pickle.load(pl)
+            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(loop).zfill(2), "log", CITY)
+            log.to_csv(path, index=False)
+
+        # load best model
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", CITY)
+        model_state_dict = pickle.load(open(path, "rb"))
 
         # evaluate
         print("* evaluating ... ")
-        model, rmse, accuracy = evaluate(study.best_trial, train, test)
+        rmse, accuracy = evaluate(model_state_dict, train, test)
         rmse_list.append(rmse)
         accuracy_list.append(accuracy)
 
-        # saving model
-        with open("model/" + CITY + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_model.pickle", "wb") as pl:
-            torch.save(model.state_dict(), pl)
-        with open("model/" + CITY + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_trainset.pickle", "wb") as pl:
-            pickle.dump(train, pl)
-        with open("model/" + CITY + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_validset.pickle", "wb") as pl:
-            pickle.dump(valid, pl)
-        with open("model/" + CITY + "_" + ATTRIBUTE + "_" + str(i).zfill(2) + "_testset.pickle", "wb") as pl:
-            pickle.dump(test, pl)
-
         t = (time.time() - start) / (60*60)
         print("time = "+str(t)+" [hours]")
-        print("---LOOP "+str(i).zfill(2)+"---")
+        print("---LOOP "+str(loop).zfill(2)+"---")
 
-    # output results
-    EPOCHS = 1
-    BATCH_SIZE = 1
-    LEARNING_RATE = 1
-
-    with open("result/result_" + CITY + "_" + ATTRIBUTE + ".csv", "w") as result:
+    path = "result/result_{}_{}.csv".format(ATTRIBUTE, CITY)
+    with open(path, "w") as result:
         result.write("--------------------------------------------\n" +
                      "CITY = " + CITY + "\n" +
                      "MODEL_ATTRIBUTE = " + ATTRIBUTE + "\n" +
-                     "TRAIN_SIZE_RATE = " + str(TRAIN_RATE) + "\n" +
-                     "VARID_SIZE_RATE = " + str(VALID_RATE) + "\n" +
                      "TRAIN_NUM = " + str(TRAIN_NUM) + "\n" +
-                     "VARID_NUM = " + str(VARID_NUM) + "\n" +
+                     "VARID_NUM = " + str(VALID_NUM) + "\n" +
                      "TEST_NUM = " + str(TEST_NUM) + "\n" +
-                     "EPOCHS_NUM = " + str(EPOCHS) + "\n" +
-                     "BATCH_SIZE = " + str(BATCH_SIZE) + "\n" +
-                     "LSTM_DATA_WIDTH = " + str(LSTM_DATA_WIDTH) + "\n" +
-                     "LEARNING_RATE = " + str(LEARNING_RATE) + "\n" +
                      "--------------------------------------------\n")
 
-    aqiStatistics = pickle.load(open("dataset/aqiStatistics.pickle", "rb"))
-    aqiStatistics.to_csv("result/result_" + CITY + "_" + ATTRIBUTE + ".csv", mode="a")
+    # to output
+    rmse = str(np.average(np.array(rmse_list)))
+    rmse_list = list(map(lambda x: str(x), rmse_list))
+    accuracy = str(np.average(np.array(accuracy_list)))
+    accuracy_list = list(map(lambda x: str(x), accuracy_list))
 
-    with open("result/result_" + CITY + "_" + ATTRIBUTE + ".csv", "a") as result:
+    with open(path, "a") as result:
         result.write("--------------------------------------------\n")
-        result.write("model_No,rmse,accuracy\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(CITY))
         for i in range(len(rmse_list)):
-            result.write(str(i).zfill(2) + "," + str(rmse_list[i]) + "," + str(accuracy_list[i]) + "\n")
+            result.write("{},{}\n".format(str(i).zfill(2), rmse_list[i]))
+        result.write("average,{}\n".format(rmse))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(CITY))
+        for i in range(len(accuracy_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), accuracy_list[i]))
+        result.write("average,{}\n".format(accuracy))
 
-        rmse = np.average(rmse_list)
-        accuracy = np.average(accuracy_list)
-        result.write("average," + str(rmse) + "," + str(accuracy) + "\n")
-
-def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH):
+def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE):
 
     '''
     Train: Source city
@@ -149,19 +168,18 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
     # the number of train, validate, test datasets
     TRAIN_NUM = int(len(station_source) * TRAIN_RATE)
-    VAlID_NUM = int(TRAIN_NUM * VALID_RATE)
-    if VAlID_NUM < 2:
-        VAlID_NUM = 2
-    TEST_NUM = len(station_source)-(TRAIN_NUM+VAlID_NUM)
+    VALID_NUM = int(TRAIN_NUM * VALID_RATE)
+    if VALID_NUM < 2:
+        VALID_NUM = 2
+    TEST_NUM = len(station_source)-(TRAIN_NUM+VALID_NUM)
 
     # to evaluate
     rmse_list = list()
     accuracy_list = list()
 
     # statictics of dataset
-    aqiStatistics = pickle.load(open("dataset/aqiStatistics.pickle", "rb"))
     print("# of train = "+str(TRAIN_NUM))
-    print("# of valid = "+str(VAlID_NUM))
+    print("# of valid = "+str(VALID_NUM))
     print("# of test = "+str(TEST_NUM))
 
     for loop in range(LOOP):
@@ -183,8 +201,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
 
         # select train, validate, test sets
         train = source[:TRAIN_NUM]
-        valid = source[TRAIN_NUM:TRAIN_NUM+VAlID_NUM]
-        test_source = source[TRAIN_NUM+VAlID_NUM:]
+        valid = source[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
+        test_source = source[TRAIN_NUM+VALID_NUM:]
         test_target = []
         for i in range(len(target)):
             test_target.append(target[i][:TEST_NUM])
@@ -257,33 +275,15 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE,
         print("time = " + str(t) + " [hours]")
         print("---LOOP " + str(loop).zfill(2) + "---")
 
-    # output results
-    # EPOCHS = study.best_params["epochs"]
-    # BATCH_SIZE = study.best_params["batch_size"]
-    # LEARNING_RATE = study.best_params["learning_rate"]
-    # WEIGHT_DECAY = study.best_params["weight_decay"]
-
-    EPOCHS = 1
-    BATCH_SIZE = 256
-    LEARNING_RATE = 0.01
-    WEIGHT_DECAY = 0.0
-
     path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
     with open(path, "w") as result:
         result.write("--------------------------------------------\n" +
                      "SOURCE_CITY = " + SOURCE + "\n" +
                      "TARGET_CITY = " + ",".join(TARGETs) + "\n" +
                      "MODEL_ATTRIBUTE = " + ATTRIBUTE + "\n" +
-                     "TRAIN_SIZE_RATE = " + str(TRAIN_RATE) + "\n" +
-                     "VARID_SIZE_RATE = " + str(VALID_RATE) + "\n" +
                      "TRAIN_NUM = " + str(TRAIN_NUM) + "\n" +
-                     "VAlID_NUM = " + str(VAlID_NUM) + "\n" +
+                     "VAlID_NUM = " + str(VALID_NUM) + "\n" +
                      "TEST_NUM = " + str(TEST_NUM) + "\n" +
-                     "EPOCHS_NUM = " + str(EPOCHS) + "\n" +
-                     "BATCH_SIZE = " + str(BATCH_SIZE) + "\n" +
-                     "LSTM_DATA_WIDTH = " + str(LSTM_DATA_WIDTH) + "\n" +
-                     "LEARNING_RATE = " + str(LEARNING_RATE) + "\n" +
-                     "WEIGHT_DECAY = " + str(WEIGHT_DECAY) + "\n" +
                      "--------------------------------------------\n")
     # to output
     rmse = np.average(np.array(rmse_list), axis=0)
@@ -460,13 +460,13 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
         # evaluate
         print("* evaluate in " + SOURCE)
-        rmse, accuracy = re_evaluate(model_state_dict, train, test_source, loop)
+        rmse, accuracy = re_evaluate(model_state_dict, train, test_source, loop, SOURCE)
         rmse_tmp.append(rmse)
         accuracy_tmp.append(accuracy)
 
         for i in range(len(test_target)):
             print("* evaluate in " + TARGETs[i])
-            rmse, accuracy = evaluate(model_state_dict, train, test_target[i])
+            rmse, accuracy = re_evaluate(model_state_dict, train, test_target[i], loop, TARGETs[i])
             rmse_tmp.append(rmse)
             accuracy_tmp.append(accuracy)
 
@@ -516,20 +516,19 @@ if __name__ == "__main__":
     ATTRIBUTE = "pm25"
     SOURCE = "beijing"
     TARGETs = ["tianjin", "guangzhou", "shenzhen"]
+    TARGETs = ["tianjin"]
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
-    LOOP = 5
+    LOOP = 1
     TRIAL = 1
 
     # # RE-experiment of AAAI'18
-    # for CITY in [SOURCE, ] + TARGETs:
-    #     makeDataset0(CITY, ATTRIBUTE, LSTM_DATA_WIDTH)
-    #     experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    #makeDataset0(SOURCE, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    #makeDataset1_short(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH)
-    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE, LSTM_DATA_WIDTH)
+    #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
