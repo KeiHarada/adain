@@ -893,7 +893,7 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
     result_label = []
 
     # the number to divide the whole of the test data into min-batches
-    batch_length = 2
+    batch_length = 1
 
     # load data
     print("data loading ....", end="")
