@@ -700,7 +700,7 @@ def objective(trial):
 
     # hyper parameters for constance
     batch_size = 256
-    epochs = 1
+    epochs = 100
     lr = 0.01
     wd = 0.0
 
