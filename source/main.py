@@ -528,7 +528,7 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*20)
+    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
