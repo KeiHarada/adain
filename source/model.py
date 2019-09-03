@@ -73,8 +73,17 @@ class ADAIN(nn.Module):
         :param batch_size:
         :return: (hidden0, cell0)
         '''
-        return ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2,
-                (torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2)
+
+        # CPU or GPU
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+
+        hidden0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
+        cell0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
+        
+        return (hidden0, cell0)
 
     def forward(self, x_local_static, x_local_seq, x_others_static, x_others_seq):
         '''
