@@ -520,7 +520,7 @@ if __name__ == "__main__":
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
-    LOOP = 5
+    LOOP = 1
     TRIAL = 1
 
     # # RE-experiment of AAAI'18
@@ -528,7 +528,7 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
-    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)

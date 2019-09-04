@@ -699,7 +699,7 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 256
+    batch_size = 8
     epochs = 100
     lr = 0.01
     wd = 0.0
@@ -754,6 +754,8 @@ def objective(trial):
             running_loss = []
             batch_length = int(len(trainData_i[4])) // batch_size # len(item[4]): len(target)
 
+            #TODO batch targetにへんなのが混ざっている
+            #TODO load data のバグ or makebachのバグ
             for batch_i in makeRandomBatch(trainData_i, batch_length, batch_size):
 
                 batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
@@ -767,6 +769,11 @@ def objective(trial):
 
                 # predict
                 pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+                a = pred.clone()
+                b = batch_target.clone()
+                c = torch.cat([a, b], dim=1)
+                print("")
+                print(c)
                 loss = criterion(pred, batch_target)
                 loss.backward()
                 optimizer.step()
