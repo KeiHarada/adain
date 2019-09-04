@@ -1,7 +1,6 @@
 # to run on server
 import sys
 sys.path.append("/home/harada/Documents/WorkSpace/adain")
-sys.path.append("/home")
 
 import pickle
 import _pickle
@@ -15,6 +14,7 @@ from sklearn.metrics import mean_squared_error
 # from my library
 from source.model import ADAIN
 from source.utility import Color
+from source.utility import MyDataset
 from source.utility import get_dist_angle
 from source.utility import calc_correct
 from source.utility import get_aqi_series
@@ -28,7 +28,7 @@ from source.utility import EarlyStopping
 from source.utility import get_activation
 from source.utility import get_optimizer
 
-def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width, data_length=None):
+def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_width, data_length=None):
     '''
     :param source_city:
     :param target_cities (list):
@@ -239,7 +239,7 @@ def makeDataset1(source_city, target_cities, model_attribute, lstm_data_width, d
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeDataset0(city_name, model_attribute, lstm_data_width, data_length=None):
+def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=None):
     '''
     :param city_name:
     :param model_attribute:
@@ -437,7 +437,7 @@ def makeTestBatch(divided, batch_length):
 
     return batch
 
-def makeRandomBatch(divided, batch_length, batch_size):
+def _makeRandomBatch(divided, batch_length, batch_size):
 
     '''
     :param divided: a set of (local_static, local_seq, others_static, others_seq, target)
@@ -472,14 +472,57 @@ def makeRandomBatch(divided, batch_length, batch_size):
                 batch_others_seq[k].append(others_seq[k][idx])
 
         batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
+        print(batch[i][4])
 
     return batch
 
-def loadTrainData(station_train):
+def makeRandomBatch(divided, batch_length, batch_size):
+    '''
+    :param divided: a set of (local_static, local_seq, others_static, others_seq, target)
+    :param batch_length:
+    :param batch_size:
+    :return: a list of batches
+    '''
+
+    # input
+    local_static, local_seq, others_static, others_seq, target = divided
+
+    # output
+    batch = list()
+    '''
+    a batch = (batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target)
+    '''
+    for i in range(batch_length):
+        batch_local_static = list()
+        batch_local_seq = list()
+        batch_others_static = list()
+        batch_others_seq = list()
+        batch_target = list()
+
+        for j in range(batch_size):
+            idx = np.random.randint(0, len(target) -1)
+            batch_local_static.append(local_static[0])
+            batch_local_seq.append(local_seq[idx])
+            batch_target.append(target[idx])
+
+            for k in range(len(others_static)):
+
+                if j == 0:
+                    batch_others_static.append([others_static[k][0]])
+                    batch_others_seq.append([others_seq[k][idx]])
+                else:
+                    batch_others_static[k].append(others_static[k][0])
+                    batch_others_seq[k].append(others_seq[k][idx])
+
+        batch.append((batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target))
+
+    return batch
+
+def makeTrainData(station_train):
 
     '''
     :param station_train): a list of station ids
-    :return: a list of trainData
+    :return: featureData, labelData
     '''
 
     # raw data
@@ -490,26 +533,26 @@ def loadTrainData(station_train):
     targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
 
     # output
-    trainData = list()
+    featureData = list()
+    labelData = list()
 
-    # make a list of train data
     '''
-    a train data = (local_static, local_seq, others_static, others_seq, target)
+    featureData_t = (local_static, local_seq, others_static, others_seq)_t
+    labelData_t = target_t
     '''
     for station_local in station_train:
 
         station_others = station_train.copy()
         station_others.remove(station_local)
 
-        # station local
-        local_static = [staticData[station_local][0] + [0, 0]]
-        local_seq = meteorologyData[station_local]
-
+        '''
+        calculate distance and angle of other stations from local stations
+        '''
         # lat, lon of local station
         lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
         lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
 
-        # distance and angle data
+        # distance and angle
         distance = list()
         angle = list()
         for sid in station_others:
@@ -527,41 +570,47 @@ def loadTrainData(station_train):
         minimum = min(angle)
         angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
 
-        # make dictionary "geo"
-        geo = dict()
+        # add
+        others_static = list()
         idx = 0
         for sid in station_others:
-            geo[sid] = dict()
-            geo[sid]["distance"] = distance[idx]
-            geo[sid]["angle"] = angle[idx]
+            others_static.append([staticData[sid][0] + [distance[idx], angle[idx]]])
             idx += 1
 
-        # station others
-        others_static = []
-        others_seq = []
+        '''
+        concut meteorological data with aqi data of seqData of others
+        '''
+        seqData_others = dict()
         for sid in station_others:
-
-            stat = _pickle.loads(_pickle.dumps(staticData[sid], -1)) # _pickleを使った高速コピー
-            stat[0].append(geo[sid]["distance"])
-            stat[0].append(geo[sid]["angle"])
-            others_static.append(stat)
-
-            m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1)) # _pickleを使った高速コピー
-            a = _pickle.loads(_pickle.dumps(aqiData[sid], -1)) # _pickleを使った高速コピー
+            m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
+            a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
             for i in range(len(m)):
                 for j in range(len(m[i])):
                     m[i][j] += a[i][j]
-            others_seq.append(m)
+            seqData_others[sid] = m
 
-        # target
+        '''
+        local data and target data
+        '''
+        local_static = staticData[station_local]
+        local_seq = meteorologyData[station_local]
         target = targetData[station_local]
 
-        trainData.append((local_static, local_seq, others_static, others_seq, target))
+        '''
+        make dataset
+        '''
+        for t in range(len(target)):
 
+            others_seq = list()
+            for sid in station_others:
+                others_seq.append(seqData_others[sid][t])
 
-    return trainData
+            featureData.append((local_static, local_seq[t], others_static, others_seq))
+            labelData.append(target[t])
 
-def loadTestData(station_test, station_train):
+    return featureData, labelData
+
+def makeTestData(station_test, station_train):
 
     '''
     :param station_test:
@@ -577,11 +626,12 @@ def loadTestData(station_test, station_train):
     targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
 
     # output
-    testData = list()
+    featureData = list()
+    labelData = list()
 
-    # make a list of train data
     '''
-    a test data = (local_static, local_seq, others_static, others_seq, target)
+    featureData_t = (local_static, local_seq, others_static, others_seq)_t
+    labelData_t = target_t
     '''
     for station_local in station_test:
 
@@ -589,16 +639,14 @@ def loadTestData(station_test, station_train):
 
             station_others = station_train.copy()
             station_others.remove(station_removed)
-
-            # station local
-            local_static = [staticData[station_local][0] + [0, 0]]
-            local_seq = meteorologyData[station_local]
-
+            '''
+            calculate distance and angle of other stations from local stations
+            '''
             # lat, lon of local station
             lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
             lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
 
-            # distance and angle data
+            # distance and angle
             distance = list()
             angle = list()
             for sid in station_others:
@@ -609,84 +657,50 @@ def loadTestData(station_test, station_train):
                 angle.append(result["azimuth1"])
 
             # normalization
-            maximum = max(distance)
-            minimum = min(distance)
+            maximum, minimum = max(distance), min(distance)
             distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-            maximum = max(angle)
-            minimum = min(angle)
+            maximum, minimum = max(angle), min(angle)
             angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
 
-            # make dictionary "geo"
-            geo = dict()
+            # add
+            others_static = list()
             idx = 0
             for sid in station_others:
-                geo[sid] = dict()
-                geo[sid]["distance"] = distance[idx]
-                geo[sid]["angle"] = angle[idx]
+                others_static.append([staticData[sid][0] + [distance[idx], angle[idx]]])
                 idx += 1
 
-            # station others
-            others_static = []
-            others_seq = []
+            '''
+            concut meteorological data with aqi data of seqData of others
+            '''
+            seqData_others = dict()
             for sid in station_others:
-
-                stat = _pickle.loads(_pickle.dumps(staticData[sid], -1))  # _pickleを使った高速コピー
-                stat[0].append(geo[sid]["distance"])
-                stat[0].append(geo[sid]["angle"])
-                others_static.append(stat)
-
                 m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
                 a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
                 for i in range(len(m)):
                     for j in range(len(m[i])):
                         m[i][j] += a[i][j]
-                others_seq.append(m)
+                seqData_others[sid] = m
 
-            # target
+            '''
+            local data and target data
+            '''
+            local_static = staticData[station_local]
+            local_seq = meteorologyData[station_local]
             target = targetData[station_local]
 
-            testData.append((local_static, local_seq, others_static, others_seq, target))
+            '''
+            make dataset
+            '''
+            for t in range(len(target)):
 
-    return testData
+                others_seq = list()
+                for sid in station_others:
+                    others_seq.append(seqData_others[sid][t])
 
-def validate(model, validData):
+                featureData.append((local_static, local_seq[t], others_static, others_seq))
+                labelData.append(target[t])
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # for evaluation
-    result = []
-    result_label = []
-
-    # the number to divide the whole of the test data into min-batches
-    batch_length = 1
-
-    for validData_i in validData:
-
-        for batch_i in makeTestBatch(validData_i, batch_length):
-
-            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
-
-            # to tensor
-            batch_local_static = torch.tensor(batch_local_static).to(device)
-            batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
-            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
-
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            pred = pred.to("cpu")
-
-            # evaluate
-            pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target))
-            result += pred
-            result_label += batch_target
-
-    # evaluation score
-    rmse = np.sqrt(mean_squared_error(result, result_label))
-    accuracy = calc_correct(result, result_label) / len(result)
-
-    return rmse, accuracy
+    return featureData, labelData
 
 def objective(trial):
 
@@ -699,18 +713,19 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 8
+    batch_size = 32
     epochs = 100
     lr = 0.01
-    wd = 0.0
+    wd = 0.0005
 
     # input dimension
     inputDim = pickle.load(open("model/inputDim.pickle", "rb"))
 
     # model
-    model = ADAIN(inputDim_static=inputDim["static"],
-                  inputDim_seq_local=inputDim["seq_local"],
-                  inputDim_seq_others=inputDim["seq_others"])
+    model = ADAIN(inputDim_local_static=inputDim["local_static"],
+                  inputDim_local_seq=inputDim["local_seq"],
+                  inputDim_others_static=inputDim["others_static"],
+                  inputDim_others_seq=inputDim["others_seq"])
 
     # GPU or CPU
     model = model.to(device)
@@ -734,9 +749,14 @@ def objective(trial):
 
     # load data
     print("data loading ...", end="")
-    trainData = loadTrainData(station_train)
-    validData = loadTestData(station_valid, station_train)
+    data, label = makeTrainData(station_train)
+    trainData = MyDataset(data, label)
+    data, label = makeTestData(station_valid, station_train)
+    validData = MyDataset(data, label)
     print(Color.GREEN + "OK" + Color.END)
+
+    print(trainData[0])
+    exit()
 
     for step in range(int(epochs)):
 
@@ -754,8 +774,6 @@ def objective(trial):
             running_loss = []
             batch_length = int(len(trainData_i[4])) // batch_size # len(item[4]): len(target)
 
-            #TODO batch targetにへんなのが混ざっている
-            #TODO load data のバグ or makebachのバグ
             for batch_i in makeRandomBatch(trainData_i, batch_length, batch_size):
 
                 batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
@@ -763,8 +781,8 @@ def objective(trial):
                 # to tensor
                 batch_local_static = torch.tensor(batch_local_static).to(device)
                 batch_local_seq = torch.tensor(batch_local_seq).to(device)
-                batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
-                batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+                batch_others_static = torch.tensor(batch_others_static).to(device)
+                batch_others_seq = torch.tensor(batch_others_seq).to(device)
                 batch_target = torch.tensor(batch_target).to(device)
 
                 # predict
@@ -816,6 +834,44 @@ def objective(trial):
 
     return rmse
 
+def validate(model, validData):
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # for evaluation
+    result = []
+    result_label = []
+
+    # the number to divide the whole of the test data into min-batches
+    batch_length = 1
+
+    for validData_i in validData:
+
+        for batch_i in makeTestBatch(validData_i, batch_length):
+
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+
+            # to tensor
+            batch_local_static = torch.tensor(batch_local_static).to(device)
+            batch_local_seq = torch.tensor(batch_local_seq).to(device)
+            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
+            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+            pred = pred.to("cpu")
+
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target))
+            result += pred
+            result_label += batch_target
+
+    # evaluation score
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+
+    return rmse, accuracy
 
 def evaluate(model_state_dict, station_train, station_test):
 
@@ -825,9 +881,10 @@ def evaluate(model_state_dict, station_train, station_test):
     inputDim = pickle.load(open("model/inputDim.pickle", "rb"))
 
     # model
-    model = ADAIN(inputDim_static=inputDim["static"],
-                  inputDim_seq_local=inputDim["seq_local"],
-                  inputDim_seq_others=inputDim["seq_others"])
+    model = ADAIN(inputDim_local_static=inputDim["local_static"],
+                  inputDim_local_seq=inputDim["local_seq"],
+                  inputDim_others_static=inputDim["others_static"],
+                  inputDim_others_seq=inputDim["others_seq"])
 
     model.load_state_dict(model_state_dict)
     model = model.to(device)
@@ -844,7 +901,7 @@ def evaluate(model_state_dict, station_train, station_test):
 
     # load data
     print("data loading ....", end="")
-    testData = loadTestData(station_test, station_train)
+    testData = makeTestData(station_test, station_train)
     print(Color.GREEN + "OK" + Color.END)
 
     for testData_i in testData:
@@ -855,8 +912,8 @@ def evaluate(model_state_dict, station_train, station_test):
             # to tensor
             batch_local_static = torch.tensor(batch_local_static).to(device)
             batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
-            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+            batch_others_static = torch.tensor(batch_others_static).to(device)
+            batch_others_seq = torch.tensor(batch_others_seq).to(device)
 
             # predict
             pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
@@ -885,9 +942,10 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
     inputDim = pickle.load(open("model/inputDim.pickle", "rb"))
 
     # model
-    model = ADAIN(inputDim_static=inputDim["static"],
-                  inputDim_seq_local=inputDim["seq_local"],
-                  inputDim_seq_others=inputDim["seq_others"])
+    model = ADAIN(inputDim_local_static=inputDim["local_static"],
+                  inputDim_local_seq=inputDim["local_seq"],
+                  inputDim_others_static=inputDim["others_static"],
+                  inputDim_others_seq=inputDim["others_seq"])
 
     model.load_state_dict(model_state_dict)
     model = model.to(device)
@@ -904,7 +962,7 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
 
     # load data
     print("data loading ....", end="")
-    testData = loadTestData(station_test, station_train)
+    testData = makeTestData(station_test, station_train)
     print(Color.GREEN + "OK" + Color.END)
 
     for testData_i in testData:
@@ -915,8 +973,8 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
             # to tensor
             batch_local_static = torch.tensor(batch_local_static).to(device)
             batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
-            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+            batch_others_static = torch.tensor(batch_others_static).to(device)
+            batch_others_seq = torch.tensor(batch_others_seq).to(device)
 
             # predict
             pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)

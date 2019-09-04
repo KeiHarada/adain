@@ -1,7 +1,6 @@
 # to run on server
 import sys
 sys.path.append("/home/harada/Documents/WorkSpace/adain")
-sys.path.append("/home")
 
 import pickle
 import time
@@ -10,8 +9,8 @@ import torch
 import optuna
 import numpy as np
 # from my library
-from source.func import makeDataset0
-from source.func import makeDataset1
+from source.func import makeDataset_single
+from source.func import makeDataset_multi
 from source.func import objective
 from source.func import evaluate
 from source.func import re_evaluate
@@ -20,15 +19,15 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
 
     # input dimension
     dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
-    inputDim_static = dataDim["road"] + 2  # road attribute + distance + angle
-    inputDim_seq_local = dataDim["meteorology"]  # meteorology attribute
-    inputDim_seq_others = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
+    inputDim_local_static = dataDim["road"] # road attribute
+    inputDim_local_seq = dataDim["meteorology"]  # meteorology attribute
+    inputDim_others_static = dataDim["road"] + 2  # road attribute + distance + angle
+    inputDim_others_seq = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
 
-    # saving input dimension
+    # save input dimension
     with open("model/inputDim.pickle", "wb") as fl:
-        dc = {"static": inputDim_static,
-              "seq_local": inputDim_seq_local,
-              "seq_others": inputDim_seq_others}
+        dc = {"local_static": inputDim_local_static, "local_seq": inputDim_local_seq,
+              "others_static": inputDim_others_static, "others_seq": inputDim_others_seq}
         pickle.dump(dc, fl)
 
     # to devide the dataset
@@ -151,13 +150,15 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     # input dimension
     dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
-    inputDim_static = dataDim["road"] + 2  # road attribute + distance + angle
-    inputDim_seq_local = dataDim["meteorology"]  # meteorology attribute
-    inputDim_seq_others = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
+    inputDim_local_static = dataDim["road"] # road attribute
+    inputDim_local_seq = dataDim["meteorology"]  # meteorology attribute
+    inputDim_others_static = dataDim["road"] + 2  # road attribute + distance + angle
+    inputDim_others_seq = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
 
     # save input dimension
     with open("model/inputDim.pickle", "wb") as fl:
-        dc = {"static": inputDim_static, "seq_local": inputDim_seq_local, "seq_others": inputDim_seq_others}
+        dc = {"local_static": inputDim_local_static, "local_seq": inputDim_local_seq,
+              "others_static": inputDim_others_static, "others_seq": inputDim_others_seq}
         pickle.dump(dc, fl)
 
     # load source and target stations
@@ -524,11 +525,11 @@ if __name__ == "__main__":
     TRIAL = 1
 
     # # RE-experiment of AAAI'18
-    #makeDataset0(SOURCE, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #makeDataset_single(SOURCE, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    #makeDataset1(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)

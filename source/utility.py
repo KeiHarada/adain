@@ -3,9 +3,27 @@ import pandas as pd
 import numpy as np
 import overpy
 import torch
+from torchvision import transforms
 import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
+
+class MyDataset(torch.utils.data.Dataset):
+
+    def __init__(self, feature, label):
+        self.feature = feature
+        self.data_num = len(label)
+        self.label = label
+
+    def __len__(self):
+        return self.data_num
+
+    def __getitem__(self, idx):
+        out_data = self.feature[idx]
+        out_label = self.label[0][idx]
+
+        return out_data, out_label
+
 
 class Color:
     BLACK     = '\033[30m'
