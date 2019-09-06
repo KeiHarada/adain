@@ -10,20 +10,26 @@ from sklearn.preprocessing import MinMaxScaler
 
 class MyDataset(torch.utils.data.Dataset):
 
-    def __init__(self, feature, label):
-        self.feature = feature
-        self.data_num = len(label)
-        self.label = label
+    def __init__(self, data):
+        self.local_static = data[0]
+        self.local_seq = data[1]
+        self.others_static = data[2]
+        self.others_seq = data[3]
+        self.target = data[4]
+        self.data_num = len(data[4])
 
     def __len__(self):
         return self.data_num
 
     def __getitem__(self, idx):
-        out_data = self.feature[idx]
-        out_label = self.label[0][idx]
 
-        return out_data, out_label
+        out_local_static = torch.tensor(self.local_static[idx])
+        out_local_seq = torch.tensor(self.local_seq[idx])
+        out_others_static = torch.tensor(self.others_static[idx])
+        out_others_seq = torch.tensor(self.others_seq[idx])
+        out_target = torch.tensor(self.target[idx])
 
+        return out_local_static, out_local_seq, out_others_static, out_others_seq, out_target
 
 class Color:
     BLACK     = '\033[30m'

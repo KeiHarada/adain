@@ -121,6 +121,9 @@ class ADAIN(nn.Module):
         y_local = F.relu(self.fc_joint2_local(y_local))
         y_local = self.drop_joint_local(y_local)
 
+
+        print(x_others_static[0].size())
+        exit()
         # |- others
         y_others = list()
         for i in range(K):

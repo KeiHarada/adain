@@ -127,22 +127,33 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
 
-    source = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
-    df = data_interpolate(source[[model_attribute]])
-    source = pd.concat([source.drop(aqi_attribute, axis=1), df], axis=1)
+    # for label
+    source1 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
+    df = data_interpolate(source1[[model_attribute]])
+    source1 = pd.concat([source1.drop(aqi_attribute, axis=1), df], axis=1)
+
+    # for feature
+    source2 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
+    df = normalization(data_interpolate(source2[[model_attribute]]))
+    source2 = pd.concat([source2.drop(aqi_attribute, axis=1), df], axis=1)
 
     for target_city in target_cities:
-        target = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
-        df = data_interpolate(target[[model_attribute]])
-        target = pd.concat([target.drop(aqi_attribute, axis=1), df], axis=1)
+        # for label
+        target1 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
+        df = data_interpolate(target1[[model_attribute]])
+        target1 = pd.concat([target1.drop(aqi_attribute, axis=1), df], axis=1)
+
+        # for feature
+        target2 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
+        df = normalization(data_interpolate(target2[[model_attribute]]))
+        target2 = pd.concat([target2.drop(aqi_attribute, axis=1), df], axis=1)
 
         if target_city == target_cities[0]:
-            aqi_raw = pd.concat([source, target], ignore_index=True)
+            aqi_raw1 = pd.concat([source1, target1], ignore_index=True)
+            aqi_raw2 = pd.concat([source2, target2], ignore_index=True)
         else:
-            aqi_raw = pd.concat([aqi_raw, target], ignore_index=True)
-
-    with open("dataset/aqiStatistics.pickle", "wb") as pl:
-        pickle.dump(aqi_raw.describe(), pl)
+            aqi_raw1 = pd.concat([aqi_raw1, target1], ignore_index=True)
+            aqi_raw2 = pd.concat([aqi_raw2, target2], ignore_index=True)
 
     '''
     make dataset
@@ -156,11 +167,10 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
             * poi (TODO)
 
         format
-            r = [motorway, trunk, others]
-            X = [ r ]
+            X = [motorway, trunk, others]
         '''
         recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
-        staticData[sid] = [recode]
+        staticData[sid] = recode
 
         '''
         sequence data
@@ -180,7 +190,7 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
         did = list(station_raw[station_raw["sid"] == sid]["did"])[0]
         meteorology_data = {att: get_meteorology_series(data=meteorology_raw, did=did, attribute=att)
                             for att in meteorology_attribute}
-        aqi_data = get_aqi_series(data=aqi_raw, sid=sid, attribute=model_attribute)
+        aqi_data2 = get_aqi_series(data=aqi_raw2, sid=sid, attribute=model_attribute)
 
         if data_length is None:
             data_length = len(meteorology_data[meteorology_attribute[0]])
@@ -198,7 +208,7 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
                 for att in meteorology_attribute:
                     recode_m_t.append(meteorology_data[att][t])
                 recode_m_p.append(recode_m_t)
-                recode_a_p.append([aqi_data[t]])
+                recode_a_p.append([aqi_data2[t]])
             seqData_m[sid].append(recode_m_p)
             seqData_a[sid].append(recode_a_p)
             start += 1
@@ -212,9 +222,10 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
             aqi = "pm25" or  "pm10" or "no2" or "co" or "o3" or "so2"
             X = [ [aqi_p], [aqi_p+1], ..., [aqi_n] ]
         '''
+        aqi_data1 = get_aqi_series(data=aqi_raw1, sid=sid, attribute=model_attribute)
         targetData[sid] = []
         for t in range(lstm_data_width - 1, data_length):
-            targetData[sid].append([aqi_data[t]])
+            targetData[sid].append([aqi_data1[t]])
 
     # saving
     with open("dataset/dataDim.pickle", "wb") as pl:
@@ -287,11 +298,16 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
     aqi_attribute = ["pm25", "pm10", "no2", "co", "o3", "so2"]
     dtype = {att: "float" for att in aqi_attribute}
     dtype["sid"], dtype["time"] = "object", "object"
-    aqi_raw = pd.read_csv("database/aqi/aqi_" + city_name + ".csv", dtype=dtype)
-    df = data_interpolate(aqi_raw[[model_attribute]])
-    aqi_raw = pd.concat([aqi_raw.drop(aqi_attribute, axis=1), df], axis=1)
-    with open("dataset/aqiStatistics.pickle", "wb") as pl:
-        pickle.dump(aqi_raw.describe(), pl)
+
+    # for label
+    aqi_raw1 = pd.read_csv("database/aqi/aqi_" + city_name + ".csv", dtype=dtype)
+    df = data_interpolate(aqi_raw1[[model_attribute]])
+    aqi_raw1 = pd.concat([aqi_raw1.drop(aqi_attribute, axis=1), df], axis=1)
+
+    # for feature
+    aqi_raw2 = pd.read_csv("database/aqi/aqi_" + city_name + ".csv", dtype=dtype)
+    df = normalization(data_interpolate(aqi_raw2[[model_attribute]]))
+    aqi_raw2 = pd.concat([aqi_raw2.drop(aqi_attribute, axis=1), df], axis=1)
 
     '''
     make dataset
@@ -305,11 +321,10 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
             * poi (TODO)
 
         format
-            r = [motorway, trunk, others]
-            X = [ r ]
+            X = [motorway, trunk, others]
         '''
         recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
-        staticData[sid] = [recode]
+        staticData[sid] = recode
 
         '''
         sequence data
@@ -329,7 +344,7 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
         did = list(station_raw[station_raw["sid"] == sid]["did"])[0]
         meteorology_data = {att: get_meteorology_series(data=meteorology_raw, did=did, attribute=att)
                             for att in meteorology_attribute}
-        aqi_data = get_aqi_series(data=aqi_raw, sid=sid, attribute=model_attribute)
+        aqi_data2 = get_aqi_series(data=aqi_raw2, sid=sid, attribute=model_attribute)
 
         if data_length is None:
             data_length = len(meteorology_data[meteorology_attribute[0]])
@@ -347,7 +362,7 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
                 for att in meteorology_attribute:
                     recode_m_t.append(meteorology_data[att][t])
                 recode_m_p.append(recode_m_t)
-                recode_a_p.append([aqi_data[t]])
+                recode_a_p.append([aqi_data2[t]])
             seqData_m[sid].append(recode_m_p)
             seqData_a[sid].append(recode_a_p)
             start += 1
@@ -361,9 +376,10 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
             aqi = "pm25" or  "pm10" or "no2" or "co" or "o3" or "so2"
             X = [ [aqi_p], [aqi_p+1], ..., [aqi_n] ]
         '''
+        aqi_data1 = get_aqi_series(data=aqi_raw1, sid=sid, attribute=model_attribute)
         targetData[sid] = []
         for t in range(lstm_data_width - 1, data_length):
-            targetData[sid].append([aqi_data[t]])
+            targetData[sid].append([aqi_data1[t]])
 
     # saving
     with open("dataset/dataDim.pickle", "wb") as pl:
@@ -533,8 +549,11 @@ def makeTrainData(station_train):
     targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
 
     # output
-    featureData = list()
-    labelData = list()
+    out_local_static = list()
+    out_local_seq = list()
+    out_others_static = list()
+    out_others_seq = list()
+    out_target = list()
 
     '''
     featureData_t = (local_static, local_seq, others_static, others_seq)_t
@@ -574,7 +593,7 @@ def makeTrainData(station_train):
         others_static = list()
         idx = 0
         for sid in station_others:
-            others_static.append([staticData[sid][0] + [distance[idx], angle[idx]]])
+            others_static.append(staticData[sid] + [distance[idx], angle[idx]])
             idx += 1
 
         '''
@@ -605,10 +624,13 @@ def makeTrainData(station_train):
             for sid in station_others:
                 others_seq.append(seqData_others[sid][t])
 
-            featureData.append((local_static, local_seq[t], others_static, others_seq))
-            labelData.append(target[t])
+            out_local_static.append(local_static)
+            out_local_seq.append(local_seq[t])
+            out_others_static.append(others_static)
+            out_others_seq.append(others_seq)
+            out_target.append(target[t])
 
-    return featureData, labelData
+    return (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
 
 def makeTestData(station_test, station_train):
 
@@ -626,8 +648,11 @@ def makeTestData(station_test, station_train):
     targetData = pickle.load(open("dataset/targetData.pickle", "rb"))
 
     # output
-    featureData = list()
-    labelData = list()
+    out_local_static = list()
+    out_local_seq = list()
+    out_others_static = list()
+    out_others_seq = list()
+    out_target = list()
 
     '''
     featureData_t = (local_static, local_seq, others_static, others_seq)_t
@@ -666,7 +691,7 @@ def makeTestData(station_test, station_train):
             others_static = list()
             idx = 0
             for sid in station_others:
-                others_static.append([staticData[sid][0] + [distance[idx], angle[idx]]])
+                others_static.append(staticData[sid] + [distance[idx], angle[idx]])
                 idx += 1
 
             '''
@@ -697,10 +722,13 @@ def makeTestData(station_test, station_train):
                 for sid in station_others:
                     others_seq.append(seqData_others[sid][t])
 
-                featureData.append((local_static, local_seq[t], others_static, others_seq))
-                labelData.append(target[t])
+                out_local_static.append(local_static)
+                out_local_seq.append(local_seq[t])
+                out_others_static.append(others_static)
+                out_others_seq.append(others_seq)
+                out_target.append(target[t])
 
-    return featureData, labelData
+    return (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
 
 def objective(trial):
 
@@ -749,57 +777,42 @@ def objective(trial):
 
     # load data
     print("data loading ...", end="")
-    data, label = makeTrainData(station_train)
-    trainData = MyDataset(data, label)
-    data, label = makeTestData(station_valid, station_train)
-    validData = MyDataset(data, label)
+    trainData = MyDataset(makeTrainData(station_train))
+    validData = MyDataset(makeTestData(station_valid, station_train))
     print(Color.GREEN + "OK" + Color.END)
-
-    print(trainData[0])
-    exit()
 
     for step in range(int(epochs)):
 
-        step_loss = []
+        step_loss = list()
 
-        running = 0
-        maximum = int(len(trainData))
+        running = 1
+        for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
-        # train
-        for trainData_i in trainData:
+            print("\t|- batch loss: ", end="")
 
-            running +=1
-            print("\t|- running loss %d / %d : " % (running, maximum), end="")
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-            running_loss = []
-            batch_length = int(len(trainData_i[4])) // batch_size # len(item[4]): len(target)
+            # to GPU
+            batch_local_static = batch_local_static.to(device)
+            batch_local_seq = batch_local_seq.to(device)
+            batch_others_static = batch_others_static.to(device)
+            batch_others_seq = batch_others_seq.to(device)
+            batch_target = batch_target.to(device)
 
-            for batch_i in makeRandomBatch(trainData_i, batch_length, batch_size):
-
-                batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
-
-                # to tensor
-                batch_local_static = torch.tensor(batch_local_static).to(device)
-                batch_local_seq = torch.tensor(batch_local_seq).to(device)
-                batch_others_static = torch.tensor(batch_others_static).to(device)
-                batch_others_seq = torch.tensor(batch_others_seq).to(device)
-                batch_target = torch.tensor(batch_target).to(device)
-
-                # predict
-                pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-                a = pred.clone()
-                b = batch_target.clone()
-                c = torch.cat([a, b], dim=1)
-                print("")
-                print(c)
-                loss = criterion(pred, batch_target)
-                loss.backward()
-                optimizer.step()
-                running_loss.append(np.sqrt(loss.item()))
-
-            running_loss = np.average(running_loss)
-            step_loss.append(running_loss)
-            print("%.10f" % (running_loss))
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+            exit()
+            a = pred.clone()
+            b = batch_target.clone()
+            c = torch.cat([a, b], dim=1)
+            print("")
+            print(c)
+            loss = criterion(pred, batch_target)
+            loss.backward()
+            optimizer.step()
+            batch_loss = np.sqrt(loss.item())
+            print("%.10f" % (batch_loss))
+            step_loss.append(batch_loss)
 
         step_loss = np.average(step_loss)
         print("\t\t|- epoch %d loss: %.10f" % (step + 1, step_loss))
