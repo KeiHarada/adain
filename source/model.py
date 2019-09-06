@@ -15,13 +15,14 @@ class ADAIN(nn.Module):
             device = "cpu"
 
         # drop out layer
-        self.drop_basic_local = nn.Dropout2d(p=0.4)
-        self.drop_basic_others = nn.Dropout2d(p=0.4)
-        self.drop_lstm_local = nn.Dropout2d(p=0.4)
-        self.drop_lstm_others = nn.Dropout2d(p=0.4)
-        self.drop_joint_local = nn.Dropout2d(p=0.3)
-        self.drop_joint_others = nn.Dropout2d(p=0.3)
-        self.drop_fusion = nn.Dropout2d(p=0.2)
+        self.drop_basic_local = nn.Dropout2d(p=0.3)
+        self.drop_basic_others = nn.Dropout2d(p=0.3)
+        self.drop_lstm_local = nn.Dropout2d(p=0.3)
+        self.drop_lstm_others = nn.Dropout2d(p=0.3)
+        self.drop_joint_local = nn.Dropout2d(p=0.2)
+        self.drop_joint_others = nn.Dropout2d(p=0.2)
+        self.drop_attention = nn.Dropout2d(p=0.1)
+        self.drop_fusion = nn.Dropout2d(p=0.1)
 
         # the neuron size of hidden layer
         self.fc_basic_hidden = 100
@@ -105,56 +106,64 @@ class ADAIN(nn.Module):
             |- lstm: 2 layers with 300 neurons per layer
         stage2: combine static and sequence features on local and other stations, respectively
             |- high-level fc: 2 layers with 200 neurons per layer
+        stage3: calculate attention for each station by using local and other stations
+            |- attention fc: MLP layer
+        stage4: fusion local and others
+            |- fusion fc: MLP layer
         '''
-
-        # the number of other stations
-        K = len(x_others_static)
 
         # forwarding
         # |- local
+        # basic layer
         y_local_static = F.relu(self.fc_basic_local(x_local_static))
         y_local_static = self.drop_basic_local(y_local_static)
+
+        # lstm layer
         y_local_seq, (hidden, cell) = self.lstm1_local(x_local_seq, self.initial_hidden(len(x_local_seq)))
         y_local_seq, (hidden, cell) = self.lstm2_local(y_local_seq, self.initial_hidden(len(x_local_seq)))
         y_local_seq = self.drop_lstm_local(hidden[0]) # 最後の出力が欲しいのでhiddenを使う
+
+        # joint layer
         y_local = F.relu(self.fc_joint1_local(torch.cat([y_local_static, y_local_seq], dim=1)))
         y_local = F.relu(self.fc_joint2_local(y_local))
         y_local = self.drop_joint_local(y_local)
 
-
-        print(x_others_static[0].size())
-        exit()
         # |- others
+        # the number of other stations
+        K = x_others_static.size(dim=1)
+        x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, K, dim=1)]
+        x_others_seq = [torch.squeeze(x) for x in torch.chunk(x_others_seq, K, dim=1)]
         y_others = list()
+        attention = list()
         for i in range(K):
+            # basic layer
             y_others_static_i = F.relu(self.fc_basic_others(x_others_static[i]))
             y_others_static_i = self.drop_basic_others(y_others_static_i)
+
+            # lstm layer
             y_others_seq_i, (hidden, cell) = self.lstm1_others(x_others_seq[i], self.initial_hidden(len(x_local_seq)))
             y_others_seq_i, (hidden, cell) = self.lstm2_others(y_others_seq_i, self.initial_hidden(len(x_local_seq)))
             y_others_seq_i = self.drop_lstm_others(hidden[0])  # 最後の出力が欲しいのでhiddenを使う
+
+            # joint layer
             y_others_i = F.relu(self.fc_joint1_others(torch.cat([y_others_static_i, y_others_seq_i], dim=1)))
             y_others_i = F.relu(self.fc_joint2_others(y_others_i))
             y_others_i = self.drop_joint_others(y_others_i)
             y_others.append(y_others_i)
 
+            # attention layer
+            attention_i = F.relu(self.attention1(torch.cat([y_local, y_others_i], dim=1)))
+            attention_i = self.drop_attention(attention_i)
+            attention_i = self.attention2(attention_i)
+            attention.append(attention_i)
+
+        # give other stations attention score
         y_others = torch.stack(y_others, dim=0)
-
-        '''
-        stage3: calculate attention for each station by using local and other stations
-        '''
-        attention = list()
-        for i in range(K):
-                attention_i = F.relu(self.attention1(torch.cat([y_local, y_others[i]], dim=1)))
-                attention_i = self.attention2(attention_i)
-                attention.append(attention_i)
-
         attention = torch.stack(attention, dim=0)
         attention = F.softmax(attention, dim=0)
         y_others = (attention * y_others).sum(dim=0)
 
-        '''
-        stage4: fusion local and attention 
-        '''
+        # output layer
         y = F.relu(self.fusion(torch.cat([y_local, y_others], dim=1)))
         y = self.drop_fusion(y)
         y = self.output(y)

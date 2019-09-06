@@ -741,8 +741,8 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 32
-    epochs = 100
+    batch_size = 512
+    epochs = 200
     lr = 0.01
     wd = 0.0005
 
@@ -783,12 +783,12 @@ def objective(trial):
 
     for step in range(int(epochs)):
 
-        step_loss = list()
+        epoch_loss = list()
 
-        running = 1
         for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
             print("\t|- batch loss: ", end="")
+            optimizer.zero_grad()
 
             batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
@@ -801,21 +801,15 @@ def objective(trial):
 
             # predict
             pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            exit()
-            a = pred.clone()
-            b = batch_target.clone()
-            c = torch.cat([a, b], dim=1)
-            print("")
-            print(c)
             loss = criterion(pred, batch_target)
             loss.backward()
             optimizer.step()
             batch_loss = np.sqrt(loss.item())
             print("%.10f" % (batch_loss))
-            step_loss.append(batch_loss)
+            epoch_loss.append(batch_loss)
 
-        step_loss = np.average(step_loss)
-        print("\t\t|- epoch %d loss: %.10f" % (step + 1, step_loss))
+        epoch_loss = np.average(epoch_loss)
+        print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
 
         # validate
         print("\t\t|- validation : ", end="")
@@ -855,30 +849,27 @@ def validate(model, validData):
     result = []
     result_label = []
 
-    # the number to divide the whole of the test data into min-batches
-    batch_length = 1
+    batch_size = 2000
 
-    for validData_i in validData:
+    for batch_i in torch.utils.data.DataLoader(validData, batch_size=batch_size, shuffle=False):
 
-        for batch_i in makeTestBatch(validData_i, batch_length):
+        batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+        # to GPU
+        batch_local_static = batch_local_static.to(device)
+        batch_local_seq = batch_local_seq.to(device)
+        batch_others_static = batch_others_static.to(device)
+        batch_others_seq = batch_others_seq.to(device)
 
-            # to tensor
-            batch_local_static = torch.tensor(batch_local_static).to(device)
-            batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = list(map(lambda x: torch.tensor(x).to(device), batch_others_static))
-            batch_others_seq = list(map(lambda x: torch.tensor(x).to(device), batch_others_seq))
+        # predict
+        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+        pred = pred.to("cpu")
 
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            pred = pred.to("cpu")
-
-            # evaluate
-            pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target))
-            result += pred
-            result_label += batch_target
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target))
+        result += pred
+        result_label += batch_target
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
@@ -909,36 +900,35 @@ def evaluate(model_state_dict, station_train, station_test):
     result = []
     result_label = []
 
-    # the number to divide the whole of the test data into min-batches
-    batch_length = 1
-
     # load data
     print("data loading ....", end="")
-    testData = makeTestData(station_test, station_train)
+    testData = MyDataset(makeTestData(station_test, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
-    for testData_i in testData:
+    batch_size = 2000
+    iteration = 0
+    for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
-        for batch_i in makeTestBatch(testData_i, batch_length):
-            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+        batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-            # to tensor
-            batch_local_static = torch.tensor(batch_local_static).to(device)
-            batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = torch.tensor(batch_others_static).to(device)
-            batch_others_seq = torch.tensor(batch_others_seq).to(device)
+        # to GPU
+        batch_local_static = batch_local_static.to(device)
+        batch_local_seq = batch_local_seq.to(device)
+        batch_others_static = batch_others_static.to(device)
+        batch_others_seq = batch_others_seq.to(device)
 
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            pred = pred.to("cpu")
+        # predict
+        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+        pred = pred.to("cpu")
 
-            # evaluate
-            pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target))
-            result += pred
-            result_label += batch_target
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target))
+        result += pred
+        result_label += batch_target
 
-        print("\t|- iteration %d / %d" % (int(testData.index(testData_i))+1, int(len(testData))))
+        iteration += len(batch_target)
+        print("\t|- iteration %d / %d" % (iteration, len(testData)))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
@@ -970,36 +960,35 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
     result = []
     result_label = []
 
-    # the number to divide the whole of the test data into min-batches
-    batch_length = 1
-
     # load data
     print("data loading ....", end="")
-    testData = makeTestData(station_test, station_train)
+    testData = MyDataset(makeTestData(station_test, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
-    for testData_i in testData:
+    batch_size = 2000
+    iteration = 0
+    for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
-        for batch_i in makeTestBatch(testData_i, batch_length):
-            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+        batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-            # to tensor
-            batch_local_static = torch.tensor(batch_local_static).to(device)
-            batch_local_seq = torch.tensor(batch_local_seq).to(device)
-            batch_others_static = torch.tensor(batch_others_static).to(device)
-            batch_others_seq = torch.tensor(batch_others_seq).to(device)
+        # to GPU
+        batch_local_static = batch_local_static.to(device)
+        batch_local_seq = batch_local_seq.to(device)
+        batch_others_static = batch_others_static.to(device)
+        batch_others_seq = batch_others_seq.to(device)
 
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            pred = pred.to("cpu")
+        # predict
+        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+        pred = pred.to("cpu")
 
-            # evaluate
-            pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target))
-            result += pred
-            result_label += batch_target
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target))
+        result += pred
+        result_label += batch_target
 
-        print("\t|- iteration %d / %d" % (int(testData.index(testData_i))+1, int(len(testData))))
+        iteration += len(batch_target)
+        print("\t|- iteration %d / %d" % (iteration, len(testData)))
 
     with open("tmp/inferred_{}_{}.csv".format(str(loop).zfill(2), city), "w") as outfile:
         outfile.write("y_inf,y_label\n")
