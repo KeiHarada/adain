@@ -12,6 +12,7 @@ import numpy as np
 # from my library
 from source.func import makeDataset_single
 from source.func import makeDataset_multi
+from source.func import makeDataset_mmd
 from source.func import objective
 from source.func import evaluate
 from source.func import re_evaluate
@@ -517,6 +518,7 @@ if __name__ == "__main__":
 
     ATTRIBUTE = "pm25"
     SOURCE = "beijing"
+    TARGET = "tianjin"
     TARGETs = ["tianjin", "guangzhou", "shenzhen"]
     #TARGETs = ["tianjin"]
     TRAIN_RATE = 0.67
@@ -530,7 +532,9 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
-    experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
-
+    #makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+
+    # MMD
+    makeDataset_mmd(SOURCE, TARGET, 24*30)

@@ -29,6 +29,64 @@ from source.utility import EarlyStopping
 from source.utility import get_activation
 from source.utility import get_optimizer
 
+def makeDataset_mmd(source_city, target_city, data_length=None):
+
+    # output
+    source_data = list()
+    target_data = list()
+
+    # station data
+    station_s = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
+    station_t = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
+
+    '''
+    make dataset
+    source city
+    '''
+    road_attribute = ["motorway", "trunk", "others"]
+    dtype = {att: "float" for att in road_attribute}
+    dtype["sid"] = "object"
+
+    # road network data
+    road = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
+    df = normalization(road[road_attribute])
+    source = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
+
+    # meteorological data
+    meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
+    dtype = {att: "float" for att in meteorology_attribute}
+    dtype["did"], dtype["time"] = "object", "object"
+
+    mete = pd.read_csv("database/meteorology/meteorology_" + source_city + ".csv", dtype=dtype)
+    meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+    df = normalization(data_interpolate(mete[meteorology_attribute]))
+    mete = pd.concat([mete.drop(meteorology_attribute, axis=1), df], axis=1)
+
+    df, columns = weather_onehot(mete["weather"])
+    mete = pd.concat([mete.drop(["weather"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    df, columns = winddirection_onehot(mete["wind_direction"])
+    mete = pd.concat([mete.drop(["wind_direction"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    for sid in list(station_s["sid"]):
+
+        did = list(station_s[station_s["sid"] == sid]["did"])[0]
+        mete_station = mete[mete["did"] == did]
+
+        if sid == list(station_s["sid"])[0]:
+            meteorology = mete_station
+        else:
+            meteorology = pd.concat([meteorology, mete_station], axis=0, ignore_index=True)
+
+    print(list(source["sid"]))
+    print(meteorology.columns)
+    source = pd.concat([source, meteorology], axis=1)
+
+    return source_data, target_data
+
+
 def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_width, data_length=None):
     '''
     :param source_city:
@@ -742,7 +800,7 @@ def objective(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 512
+    batch_size = 1024
     epochs = 200
     lr = 0.01
     wd = 0.0005
@@ -829,6 +887,7 @@ def objective(trial):
 
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))
+    rmse = early_stopping.val_loss_min
 
     # save model
     trial_num = trial.number
