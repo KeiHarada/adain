@@ -534,7 +534,7 @@ if __name__ == "__main__":
     # our experiment
     #makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
-    #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
+    reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
 
     # MMD
-    makeDataset_mmd(SOURCE, TARGET, 24*30)
+    #makeDataset_mmd(SOURCE, TARGET, 24*30)
