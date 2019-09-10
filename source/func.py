@@ -190,6 +190,9 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     source1 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
     df = data_interpolate(source1[[model_attribute]])
     source1 = pd.concat([source1.drop(aqi_attribute, axis=1), df], axis=1)
+    print("")
+    print(source_city)
+    print(source1.describe())
 
     # for feature
     source2 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
@@ -201,6 +204,9 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
         target1 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
         df = data_interpolate(target1[[model_attribute]])
         target1 = pd.concat([target1.drop(aqi_attribute, axis=1), df], axis=1)
+        print("")
+        print(target_city)
+        print(target1.describe())
 
         # for feature
         target2 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
