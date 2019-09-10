@@ -102,11 +102,13 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     station data
     '''
     source = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
+    print(len(source))
     with open("dataset/station_"+source_city+".pickle", "wb") as pl:
         pickle.dump(list(source["sid"]), pl)
 
     for target_city in target_cities:
         target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
+        print(len(target))
         with open("dataset/station_"+target_city+".pickle", "wb") as pl:
             pickle.dump(list(target["sid"]), pl)
 
