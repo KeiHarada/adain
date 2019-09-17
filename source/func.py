@@ -21,6 +21,7 @@ from source.utility import calc_correct
 from source.utility import get_aqi_series
 from source.utility import get_meteorology_series
 from source.utility import get_road_data
+from source.utility import get_poi_data
 from source.utility import normalization
 from source.utility import data_interpolate
 from source.utility import weather_onehot
@@ -102,13 +103,11 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     station data
     '''
     source = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
-    print(len(source))
     with open("dataset/station_"+source_city+".pickle", "wb") as pl:
         pickle.dump(list(source["sid"]), pl)
 
     for target_city in target_cities:
         target = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
-        print(len(target))
         with open("dataset/station_"+target_city+".pickle", "wb") as pl:
             pickle.dump(list(target["sid"]), pl)
 
@@ -139,6 +138,30 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
             road_raw = pd.concat([source, target], ignore_index=True)
         else:
             road_raw = pd.concat([road_raw, target], ignore_index=True)
+
+    '''
+    poi data
+    '''
+    poi_attribute =["Arts & Entertainment", "College & University", "Event",
+                    "Food", "Nightlife Spot", "Outdoors & Recreation", "Professional & Other Places",
+                    "Residence", "Shop & Service", "Travel & Transport"]
+
+    dtype = {att: "float" for att in poi_attribute}
+    dtype["sid"] = "object"
+
+    source = pd.read_csv("database/poi/poi_" + source_city + ".csv", dtype=dtype)
+    df = normalization(source[poi_attribute])
+    source = pd.concat([source.drop(poi_attribute, axis=1), df], axis=1)
+
+    for target_city in target_cities:
+        target = pd.read_csv("database/poi/poi_" + target_city + ".csv", dtype=dtype)
+        df = normalization(target[poi_attribute])
+        target = pd.concat([target.drop(poi_attribute, axis=1), df], axis=1)
+
+        if target_city == target_cities[0]:
+            poi_raw = pd.concat([source, target], ignore_index=True)
+        else:
+            poi_raw = pd.concat([poi_raw, target], ignore_index=True)
 
     '''
     meteorology data
@@ -192,9 +215,6 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     source1 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
     df = data_interpolate(source1[[model_attribute]])
     source1 = pd.concat([source1.drop(aqi_attribute, axis=1), df], axis=1)
-    print("")
-    print(source_city)
-    print(source1.describe())
 
     # for feature
     source2 = pd.read_csv("database/aqi/aqi_" + source_city + ".csv", dtype=dtype)
@@ -206,9 +226,6 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
         target1 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
         df = data_interpolate(target1[[model_attribute]])
         target1 = pd.concat([target1.drop(aqi_attribute, axis=1), df], axis=1)
-        print("")
-        print(target_city)
-        print(target1.describe())
 
         # for feature
         target2 = pd.read_csv("database/aqi/aqi_" + target_city + ".csv", dtype=dtype)
@@ -230,14 +247,16 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
 
         '''
         static data
+            * poi
             * road network data
-            * poi (TODO)
 
         format
-            X = [motorway, trunk, others]
+            X = [poi attributes, road attributes]
         '''
-        recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
+        recode = [float(get_poi_data(data=poi_raw, sid=sid, attribute=att)) for att in poi_attribute]
         staticData[sid] = recode
+        recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
+        staticData[sid] += recode
 
         '''
         sequence data
@@ -296,8 +315,8 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
 
     # saving
     with open("dataset/dataDim.pickle", "wb") as pl:
-        dc = {"road": len(road_attribute),
-              "meteorology": len(meteorology_attribute)}
+        dc = {"static": len(poi_attribute)+len(road_attribute),
+              "sequence": len(meteorology_attribute)}
         pickle.dump(dc, pl)
 
     with open("dataset/stationData.pickle", "wb") as pl:
@@ -342,6 +361,20 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
     df = normalization(road_raw[road_attribute])
     road_raw = pd.concat([road_raw.drop(road_attribute, axis=1), df], axis=1)
 
+    '''                                                                                         
+    poi data                                                                                          
+    '''
+    poi_attribute =["Arts & Entertainment", "College & University", "Event",
+                    "Food", "Nightlife Spot", "Outdoors & Recreation", "Professional & Other Places",
+                    "Residence", "Shop & Service", "Travel & Transport"]
+
+    dtype = {att: "float" for att in poi_attribute}
+    dtype["sid"] = "object"
+
+    poi_raw = pd.read_csv("database/poi/poi_" + city_name + ".csv", dtype=dtype)
+    df = normalization(poi_raw[poi_attribute])
+    poi_raw = pd.concat([poi_raw.drop(poi_attribute, axis=1), df], axis=1)
+
     '''
     meteorology data
     '''
@@ -384,14 +417,16 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
 
         '''
         static data
-            * road network data
-            * poi (TODO)
+            * poi
+            * road network
 
         format
             X = [motorway, trunk, others]
         '''
-        recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
+        recode = [float(get_poi_data(data=poi_raw, sid=sid, attribute=att)) for att in poi_attribute]
         staticData[sid] = recode
+        recode = [float(get_road_data(data=road_raw, sid=sid, attribute=att)) for att in road_attribute]
+        staticData[sid] += recode
 
         '''
         sequence data
@@ -450,8 +485,8 @@ def makeDataset_single(city_name, model_attribute, lstm_data_width, data_length=
 
     # saving
     with open("dataset/dataDim.pickle", "wb") as pl:
-        dc = {"road": len(road_attribute),
-              "meteorology": len(meteorology_attribute)}
+        dc = {"static": len(poi_attribute)+len(road_attribute),
+              "sequence": len(meteorology_attribute)}
         pickle.dump(dc, pl)
 
     with open("dataset/stationAll.pickle", "wb") as pl:
@@ -649,12 +684,17 @@ def makeTrainData(station_train):
             angle.append(result["azimuth1"])
 
         # normalization
-        maximum = max(distance)
-        minimum = min(distance)
-        distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-        maximum = max(angle)
-        minimum = min(angle)
-        angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
+
+        if len(distance) == 1:
+            distance = [1.0]
+            angle = [1.0]
+        else:
+            maximum = max(distance)
+            minimum = min(distance)
+            distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
+            maximum = max(angle)
+            minimum = min(angle)
+            angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
 
         # add
         others_static = list()
@@ -749,10 +789,14 @@ def makeTestData(station_test, station_train):
                 angle.append(result["azimuth1"])
 
             # normalization
-            maximum, minimum = max(distance), min(distance)
-            distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-            maximum, minimum = max(angle), min(angle)
-            angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
+            if len(distance) == 1:
+                distance = [1.0]
+                angle = [1.0]
+            else:
+                maximum, minimum = max(distance), min(distance)
+                distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
+                maximum, minimum = max(angle), min(angle)
+                angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
 
             # add
             others_static = list()

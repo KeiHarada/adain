@@ -9,6 +9,7 @@ import random
 import torch
 import optuna
 import numpy as np
+import pandas as pd
 # from my library
 from source.func import makeDataset_single
 from source.func import makeDataset_multi
@@ -21,10 +22,10 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
 
     # input dimension
     dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
-    inputDim_local_static = dataDim["road"] # road attribute
-    inputDim_local_seq = dataDim["meteorology"]  # meteorology attribute
-    inputDim_others_static = dataDim["road"] + 2  # road attribute + distance + angle
-    inputDim_others_seq = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
+    inputDim_local_static = dataDim["static"] # static attribute
+    inputDim_local_seq = dataDim["sequence"]  # sequence attribute
+    inputDim_others_static = dataDim["static"] + 2  # static attribute + distance + angle
+    inputDim_others_seq = dataDim["sequence"] + 1  # sequence attribute + an aqi value
 
     # save input dimension
     with open("model/inputDim.pickle", "wb") as fl:
@@ -36,8 +37,8 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
     station_all = pickle.load(open("dataset/stationAll.pickle", "rb"))
     TRAIN_NUM = int(len(station_all) * TRAIN_RATE)
     VALID_NUM = int(TRAIN_NUM * VALID_RATE)
-    if VALID_NUM < 2:
-        VALID_NUM = 2
+    if VALID_NUM < 1:
+        VALID_NUM = 1
     TEST_NUM = len(station_all)-(TRAIN_NUM+VALID_NUM)
 
     # statictics of dataset
@@ -152,10 +153,10 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     # input dimension
     dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
-    inputDim_local_static = dataDim["road"] # road attribute
-    inputDim_local_seq = dataDim["meteorology"]  # meteorology attribute
-    inputDim_others_static = dataDim["road"] + 2  # road attribute + distance + angle
-    inputDim_others_seq = dataDim["meteorology"] + 1  # meteorology attribute + an aqi value
+    inputDim_local_static = dataDim["static"] # static attribute
+    inputDim_local_seq = dataDim["sequence"]  # sequence attribute
+    inputDim_others_static = dataDim["static"] + 2  # static attribute + distance + angle
+    inputDim_others_seq = dataDim["sequence"] + 1  # sequence attribute + an aqi value
 
     # save input dimension
     with open("model/inputDim.pickle", "wb") as fl:
@@ -172,8 +173,8 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
     # the number of train, validate, test datasets
     TRAIN_NUM = int(len(station_source) * TRAIN_RATE)
     VALID_NUM = int(TRAIN_NUM * VALID_RATE)
-    if VALID_NUM < 2:
-        VALID_NUM = 2
+    if VALID_NUM < 1:
+        VALID_NUM = 1
     TEST_NUM = len(station_source)-(TRAIN_NUM+VALID_NUM)
 
     # to evaluate
@@ -517,10 +518,9 @@ if __name__ == "__main__":
 
 
     ATTRIBUTE = "pm25"
-    SOURCE = "beijing"
-    TARGET = "tianjin"
-    TARGETs = ["tianjin", "guangzhou", "shenzhen"]
-    #TARGETs = ["tianjin"]
+    # SOURCE = "BeiJing"
+    # TARGET = "tianjin"
+    # TARGETs = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])[1:3]
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
@@ -532,8 +532,13 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
-    #experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+    CITIES = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
+    for SOURCE in CITIES:
+        TARGETs = CITIES.copy()
+        TARGETs.remove(SOURCE)
+        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
 
     # MMD

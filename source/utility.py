@@ -114,6 +114,17 @@ class EarlyStopping:
 
 def citycode(name, scale):
 
+    codefile = pd.read_csv("rawdata/zheng2015/city.csv", index_col=2, dtype=object)
+    code = codefile.at[name, "city_id"]
+
+    if scale == "city":
+        return r"%s$" % (code)
+    if scale == "district":
+        return r"%s\d{2}$" % (code)
+    if scale == "station":
+        return r"%s\d{3}$" % (code)
+
+
     if scale == "station":
         if name == "beijing":
             return r"001\d{3}$"
@@ -236,6 +247,9 @@ def get_meteorology_series(data, did, attribute):
     return list(data[data["did"] == did][attribute])
 
 def get_road_data(data, sid, attribute):
+    return float(data[data["sid"] == sid][attribute])
+
+def get_poi_data(data, sid, attribute):
     return float(data[data["sid"] == sid][attribute])
 
 def get_road_over_the_city(city):
