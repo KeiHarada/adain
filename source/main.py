@@ -532,7 +532,14 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    CITIES = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
+    _CITIES = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
+    CITIES = list()
+    for city in _CITIES:
+        with open("database/station/station_"+city+".csv", "r") as infile:
+            infile = infile.readlines()[1:]
+            if len(infile) >= 10:
+                CITIES.append(city)
+
     for SOURCE in CITIES:
         TARGETs = CITIES.copy()
         TARGETs.remove(SOURCE)
