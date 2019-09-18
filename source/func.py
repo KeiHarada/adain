@@ -188,6 +188,7 @@ def makeDataset_multi(source_city, target_cities, model_attribute, lstm_data_wid
     for target_city in target_cities:
         target = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
         meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+        print(target_city)
         df = normalization(data_interpolate(target[meteorology_attribute]))
         target = pd.concat([target.drop(meteorology_attribute, axis=1), df], axis=1)
 

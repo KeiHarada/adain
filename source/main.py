@@ -59,7 +59,7 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
         random.shuffle(stations)
         train = stations[:TRAIN_NUM]
         valid = stations[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
-        test = stations[TRAIN_NUM+VALID_NUM:]
+        test = stations[TRAIN_NUM+VALID_NUM:TRAIN_NUM+VALID_NUM+TEST_NUM]
 
         # temporally save train, valid, test sets
         with open("tmp/trainset.pickle", "wb") as pl:
@@ -171,11 +171,16 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
         station_target.append(pickle.load(open("dataset/station_"+TARGETs[i]+".pickle", "rb")))
 
     # the number of train, validate, test datasets
-    TRAIN_NUM = int(len(station_source) * TRAIN_RATE)
-    VALID_NUM = int(TRAIN_NUM * VALID_RATE)
-    if VALID_NUM < 1:
-        VALID_NUM = 1
-    TEST_NUM = len(station_source)-(TRAIN_NUM+VALID_NUM)
+    # TRAIN_NUM = int(len(station_source) * TRAIN_RATE)
+    # VALID_NUM = int(TRAIN_NUM * VALID_RATE)
+    # if VALID_NUM < 1:
+    #     VALID_NUM = 1
+    # TEST_NUM = len(station_source)-(TRAIN_NUM+VALID_NUM)
+
+    # constant value: the number of train, validate, test datasets
+    TRAIN_NUM = 5
+    VALID_NUM = 1
+    TEST_NUM = 3
 
     # to evaluate
     rmse_list = list()
@@ -206,7 +211,7 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
         # select train, validate, test sets
         train = source[:TRAIN_NUM]
         valid = source[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
-        test_source = source[TRAIN_NUM+VALID_NUM:]
+        test_source = source[TRAIN_NUM+VALID_NUM:TRAIN_NUM+VALID_NUM+TEST_NUM]
         test_target = []
         for i in range(len(target)):
             test_target.append(target[i][:TEST_NUM])
@@ -537,9 +542,11 @@ if __name__ == "__main__":
     for city in _CITIES:
         with open("database/station/station_"+city+".csv", "r") as infile:
             infile = infile.readlines()[1:]
-            if len(infile) >= 10:
+            # train=5, valid=1, test=3の最低9stationsある都市を選択
+            if len(infile) >= 9:
                 CITIES.append(city)
 
+    CITIES.remove("JiNan") # JinNanでは気象データが全部Nullだからだめ
     for SOURCE in CITIES:
         TARGETs = CITIES.copy()
         TARGETs.remove(SOURCE)
