@@ -19,7 +19,7 @@ from source.utility import get_road_over_the_city
 from source.utility import get_grid_id
 
 #cities = ["beijing", "shenzhen", "tianjin", "guangzhou"]
-cities = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])[5:6]
+cities = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
 print(cities)
 
 def grid(scale, gridsize):
