@@ -237,7 +237,7 @@ def poi(key, secret, radius):
                 response = json.loads(response.text)["response"]
 
                 if len(response["venues"]) == 0:
-                    print("there is no pois in this area")
+                    print("\nthere is no pois in this area. sid = {}, lat = {}, lon = {}".format(sid, lat, lon))
                     exit()
 
                 for venue in response["venues"]:
