@@ -19,7 +19,7 @@ from source.utility import get_road_over_the_city
 from source.utility import get_grid_id
 
 #cities = ["beijing", "shenzhen", "tianjin", "guangzhou"]
-cities = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
+cities = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])[5:6]
 print(cities)
 
 def grid(scale, gridsize):
@@ -194,7 +194,7 @@ def poi(key, secret, radius):
 
     # create category list
     category_dict = dict()
-    poi_list = dict()
+    poi_counter = dict()
     url = "https://api.foursquare.com/v2/venues/categories"
     params = dict(
         client_id=args.key,
@@ -207,18 +207,20 @@ def poi(key, secret, radius):
         category_file.write("https://developer.foursquare.com/docs/resources/categories\n")
         for item in response["categories"]:
             category_file.write(item["name"]+"\n")
-            poi_list[item["name"]] = 0
+            poi_counter[item["name"]] = 0
             category_dict = createCategory_tree(item, category_dict, item["name"])
 
     # get poi data
     for city in cities:
 
+        no_poi_stations = list()
+
         with open("database/poi/poi_"+city+".csv", "w") as outfile:
-            outfile.write("sid,{}\n".format(",".join(list(poi_list.keys()))))
+            outfile.write("sid,{}\n".format(",".join(list(poi_counter.keys()))))
 
             for line in open("database/station/station_"+city+".csv", "r").readlines()[1:]:
 
-                _poi_list = poi_list.copy()
+                _poi_list = poi_counter.copy()
 
                 sid, lat, lon, did, gid = line.strip().split(",")
 
@@ -226,33 +228,48 @@ def poi(key, secret, radius):
                 params = dict(
                     client_id=key,
                     client_secret=secret,
-                    intent="checkin",
-                    ll = "{},{}".format(lat, lon),
-                    radius = radius, #[m]
+                    intent="browse",
+                    ll="{},{}".format(lat, lon),
+                    radius=radius, #[m]
                     limit="10000",
                     v="20140401"
                 )
                 sleep(0.1)
                 response = requests.get(url=url, params=params)
-                response = json.loads(response.text)["response"]
+                response = json.loads(response.text)
 
-                if len(response["venues"]) == 0:
-                    print("\nthere is no pois in this area. sid = {}, lat = {}, lon = {}".format(sid, lat, lon))
+                # check response
+                if response["meta"]["code"] == 200:
+                    response = response["response"]
+                else:
+                    print("error {}".format(str(response["metta"]["code"])))
                     exit()
 
-                for venue in response["venues"]:
+                # count poi
+                if len(response["venues"]) == 0:
+                    no_poi_stations.append(sid)
+                else:
+                    for venue in response["venues"]:
 
-                    for category in venue["categories"]:
-                        if category["primary"] is True:
-                            category = category["name"]
+                        # select primary category
+                        for category in venue["categories"]:
+                            if category["primary"] is True:
+                                category = category["name"]
 
-                    if category in category_dict:
-                        _poi_list[category_dict[category]] += 1
+                        # select parent category
+                        if category in category_dict:
+                            _poi_list[category_dict[category]] += 1
 
-                for k, v in _poi_list.items():
-                    _poi_list[k] = str(v)
+                    # write into a file
+                    _poi_list = map(str, list(_poi_list.values()))
+                    outfile.write("{},{}\n".format(str(sid), ",".join(_poi_list)))
 
-                outfile.write("{},{}\n".format(str(sid), ",".join(list(_poi_list.values()))))
+        # drop no poi stations from station file
+        if len(no_poi_stations) > 0:
+            stations = pd.read_csv("database/station/station_"+city+".csv", dtype=object)
+            for _sid in no_poi_stations:
+                stations = stations[stations["sid"] != _sid]
+            stations.to_csv("database/station/station_"+city+".csv", index=False)
 
 def road(radius):
     for city in cities:
@@ -404,6 +421,14 @@ if __name__ == "__main__":
     # station_grid() # for demonstration
     print(Color.GREEN + "OK" + Color.END)
 
+    print("\t|- poi data is build ... ", end="")
+    poi(args.key, args.secret, args.radius)
+    print(Color.GREEN + "OK" + Color.END)
+
+    print("\t|- road network data is build ... ", end="")
+    road(args.radius)
+    print(Color.GREEN + "OK" + Color.END)
+
     print("\t|- aqi data is build ... ", end="")
     aqi()
     print(Color.GREEN + "OK" + Color.END)
@@ -411,12 +436,4 @@ if __name__ == "__main__":
     print("\t|- meteorological data is build ... ", end="")
     meteorology()
     #unknown() # for demonstration
-    print(Color.GREEN + "OK" + Color.END)
-
-    print("\t|- poi data is build ... ", end="")
-    poi(args.key, args.secret, args.radius)
-    print(Color.GREEN + "OK" + Color.END)
-
-    print("\t|- road network data is build ... ", end="")
-    road(args.radius)
     print(Color.GREEN + "OK" + Color.END)
