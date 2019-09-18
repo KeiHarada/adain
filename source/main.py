@@ -524,7 +524,7 @@ if __name__ == "__main__":
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
-    LOOP = 5
+    LOOP = 10
     TRIAL = 1
 
     # # RE-experiment of AAAI'18
@@ -543,7 +543,7 @@ if __name__ == "__main__":
     for SOURCE in CITIES:
         TARGETs = CITIES.copy()
         TARGETs.remove(SOURCE)
-        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
+        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
         experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
