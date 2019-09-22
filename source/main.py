@@ -547,11 +547,28 @@ if __name__ == "__main__":
                 CITIES.append(city)
 
     CITIES.remove("JiNan") # JinNanでは気象データが全部Nullだからだめ
-    for SOURCE in CITIES:
-        TARGETs = CITIES.copy()
-        TARGETs.remove(SOURCE)
-        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
-        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+
+    c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
+    s = CITIES[0]
+    ts = CITIES[1:]
+    lat_local = c.at[s, "lat"]
+    lon_local = c.at[s, "lon"]
+    print(lat_local)
+    print(lon_local)
+    lat = 0
+    lon = 0
+    exit()
+    from source.utility import get_dist_angle
+    for item in ts:
+
+        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+
+
+    # for SOURCE in CITIES:
+    #     TARGETs = CITIES.copy()
+    #     TARGETs.remove(SOURCE)
+    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
+    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
 
