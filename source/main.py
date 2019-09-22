@@ -551,8 +551,8 @@ if __name__ == "__main__":
     c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
     s = CITIES[0]
     ts = CITIES[1:]
-    lat_local = c.at[s, "lat"]
-    lon_local = c.at[s, "lng"]
+    lat_local = c.at[s, "latitude"]
+    lon_local = c.at[s, "longitude"]
     print(lat_local)
     print(lon_local)
     lat = 0
