@@ -552,7 +552,7 @@ if __name__ == "__main__":
     s = CITIES[0]
     ts = CITIES[1:]
     lat_local = c.at[s, "lat"]
-    lon_local = c.at[s, "lon"]
+    lon_local = c.at[s, "lng"]
     print(lat_local)
     print(lon_local)
     lat = 0
