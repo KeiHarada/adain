@@ -544,7 +544,9 @@ if __name__ == "__main__":
             infile = infile.readlines()[1:]
             # train=5, valid=1, test=3の最低9stationsある都市を選択
             if len(infile) >= 9:
+                print(city, "\t", len(infile))
                 CITIES.append(city)
+    exit()
 
     CITIES.remove("JiNan") # JinNanでは気象データが全部Nullだからだめ
 
