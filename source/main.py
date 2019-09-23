@@ -548,28 +548,27 @@ if __name__ == "__main__":
 
     CITIES.remove("JiNan") # JinNanでは気象データが全部Nullだからだめ
 
-    c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
-    s = CITIES[0]
-    lat_local = c.at[s, "latitude"]
-    lon_local = c.at[s, "longitude"]
-    distance = list()
-    from source.utility import get_dist_angle
-    for t in CITIES:
-        lat = c.at[t, "latitude"]
-        lon = c.at[t, "longitude"]
-        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-        distance.append(str(result["distance"]))
+    for SOURCE in CITIES[1:]:
+        TARGETs = CITIES.copy()
+        TARGETs.remove(SOURCE)
+        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
+        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
-    with open("tmp/distance.csv", "w") as outfile:
-        outfile.write("{}\n".format(",".join(CITIES)))
-        outfile.write("{}\n".format(",".join(distance)))
-
-
-    # for SOURCE in CITIES:
-    #     TARGETs = CITIES.copy()
-    #     TARGETs.remove(SOURCE)
-    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
-    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+    # c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
+    # s = CITIES[0]
+    # lat_local = c.at[s, "latitude"]
+    # lon_local = c.at[s, "longitude"]
+    # distance = list()
+    # from source.utility import get_dist_angle
+    # for t in CITIES:
+    #     lat = c.at[t, "latitude"]
+    #     lon = c.at[t, "longitude"]
+    #     result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+    #     distance.append(str(result["distance"]))
+    #
+    # with open("tmp/distance.csv", "w") as outfile:
+    #     outfile.write("{}\n".format(",".join(CITIES)))
+    #     outfile.write("{}\n".format(",".join(distance)))
 
     #reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs)
 
