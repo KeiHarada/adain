@@ -550,18 +550,19 @@ if __name__ == "__main__":
 
     c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
     s = CITIES[0]
-    ts = CITIES[1:]
     lat_local = c.at[s, "latitude"]
     lon_local = c.at[s, "longitude"]
-    print(lat_local)
-    print(lon_local)
-    lat = 0
-    lon = 0
-    exit()
+    distance = list()
     from source.utility import get_dist_angle
-    for item in ts:
-
+    for t in CITIES:
+        lat = c.at[t, "latitude"]
+        lon = c.at[t, "longitude"]
         result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+        distance.append(str(result["distance"]))
+
+    with open("tmp/distance.csv", "w") as outfile:
+        outfile.write("{}\n".format(",".join(CITIES)))
+        outfile.write("{}\n".format(",".join(distance)))
 
 
     # for SOURCE in CITIES:
