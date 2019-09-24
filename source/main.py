@@ -340,6 +340,178 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
         result.write("----------\n")
         result.write("distance,0.0,{}\n".format(",".join(distance)))
 
+def experiment2(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE):
+
+    '''
+    Train: Source city
+    Test: Source, city, Target city
+    '''
+
+    # input dimension
+    dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
+    inputDim_local_static = dataDim["static"] # static attribute
+    inputDim_local_seq = dataDim["sequence"]  # sequence attribute
+    inputDim_others_static = dataDim["static"] + 2  # static attribute + distance + angle
+    inputDim_others_seq = dataDim["sequence"] + 1  # sequence attribute + an aqi value
+
+    # save input dimension
+    with open("model/inputDim.pickle", "wb") as fl:
+        dc = {"local_static": inputDim_local_static, "local_seq": inputDim_local_seq,
+              "others_static": inputDim_others_static, "others_seq": inputDim_others_seq}
+        pickle.dump(dc, fl)
+
+    # load source and target stations
+    station_source = pickle.load(open("dataset/station_"+SOURCE+".pickle", "rb"))
+    station_target = []
+    for i in range(len(TARGETs)):
+        station_target.append(pickle.load(open("dataset/station_"+TARGETs[i]+".pickle", "rb")))
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    # statictics of dataset
+    print("# of train = MAX")
+    print("# of valid = 3")
+    print("# of test = MAX")
+
+    for loop in range(1):
+
+        # to evaluate
+        rmse_tmp = list()
+        accuracy_tmp = list()
+
+        print("---LOOP " + str(loop).zfill(2) + "---")
+        start = time.time()
+
+        # shuffle for LOOP
+        source = station_source.copy()
+        random.shuffle(source)
+        target = []
+        for i in range(len(TARGETs)):
+            target.append(station_target[i].copy())
+            random.shuffle(target[i])
+
+        # select train, validate, test sets
+        train = source[3:]
+        valid = source[:3]
+        test_target = []
+        for i in range(len(target)):
+            test_target.append(target[i])
+
+        # saving train, valid, test sets
+        with open("tmp/trainset.pickle", "wb") as pl:
+            pickle.dump(train, pl)
+        with open("tmp/validset.pickle", "wb") as pl:
+            pickle.dump(valid, pl)
+        for i in range(len(test_target)):
+            with open("tmp/testset_"+TARGETs[i]+".pickle", "wb") as pl:
+                pickle.dump(test_target[i], pl)
+
+        # training & parameter tuning by optuna
+        # -- activate function, optimizer, eopchs, batch size
+        print("train in "+SOURCE)
+        study = optuna.create_study()
+        study.optimize(objective, n_trials=TRIAL)
+
+        # save best model
+        model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
+        with open(path, "wb") as pl:
+            pickle.dump(model_state_dict, pl)
+
+        # save dataset
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", SOURCE)
+        with open(path, "wb") as pl:
+            pickle.dump(train, pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", SOURCE)
+        with open(path, "wb") as pl:
+            pickle.dump(valid, pl)
+        for i in range(len(test_target)):
+            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGETs[i])
+            with open(path, "wb") as pl:
+                pickle.dump(test_target[i], pl)
+
+        # save train log
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
+            log = pickle.load(pl)
+            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(loop).zfill(2), "log", SOURCE)
+            log.to_csv(path, index=False)
+
+        # load best model
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
+        model_state_dict = pickle.load(open(path, "rb"))
+
+        # evaluate
+        for i in range(len(test_target)):
+            print("* evaluate in "+TARGETs[i])
+            rmse, accuracy = evaluate(model_state_dict, train, test_target[i])
+            rmse_tmp.append(rmse)
+            accuracy_tmp.append(accuracy)
+
+        rmse_list.append(rmse_tmp)
+        accuracy_list.append(accuracy_tmp)
+
+        # time point
+        t = (time.time() - start) / (60 * 60)
+        print("time = " + str(t) + " [hours]")
+        print("---LOOP " + str(loop).zfill(2) + "---")
+
+    path = "result/result_{}_{}.csv".format(ATTRIBUTE, SOURCE)
+    with open(path, "w") as result:
+        result.write("--------------------------------------------\n" +
+                     "SOURCE_CITY = " + SOURCE + "\n" +
+                     "TARGET_CITY = " + ",".join(TARGETs) + "\n" +
+                     "MODEL_ATTRIBUTE = " + ATTRIBUTE + "\n" +
+                     "TRAIN_NUM = MAX\n" +
+                     "VAlID_NUM = 3\n" +
+                     "TEST_NUM = MAX\n" +
+                     "--------------------------------------------\n")
+    # to output
+    rmse = np.average(np.array(rmse_list), axis=0)
+    rmse = list(map(lambda x: str(x), rmse))
+    tmp = rmse_list.copy()
+    rmse_list = []
+    for tmp_i in tmp:
+        rmse_list.append(list(map(lambda x: str(x), tmp_i)))
+
+    accuracy = np.average(np.array(accuracy_list), axis=0)
+    accuracy = list(map(lambda x: str(x), accuracy))
+    tmp = accuracy_list.copy()
+    accuracy_list = []
+    for tmp_i in tmp:
+        accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
+
+    c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
+    lat_local = c.at[SOURCE, "latitude"]
+    lon_local = c.at[SOURCE, "longitude"]
+    distance = list()
+    for target in TARGETs:
+        lat = c.at[target, "latitude"]
+        lon = c.at[target, "longitude"]
+        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+        distance.append(str(result["distance"]/1000.0))
+
+    with open(path, "a") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
+        for i in range(len(rmse_list)):
+            result.write("{},NULL,{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
+        result.write("average,NULL,{}\n".format(",".join(rmse)))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("model,{},{}\n".format(SOURCE, ",".join(TARGETs)))
+        for i in range(len(accuracy_list)):
+            result.write("{},NULL,{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
+        result.write("average,NULL,{}\n".format(",".join(accuracy)))
+        result.write("--------------------------------------------\n")
+        result.write("Distance\n")
+        result.write("----------\n")
+        result.write("distance,0.0,{}\n".format(",".join(distance)))
+
 def analysis(source, targets):
     import pandas as pd
     from sklearn.metrics import mean_squared_error
@@ -586,12 +758,18 @@ if __name__ == "__main__":
 
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "ChaoZhou"]
-    for SOURCE in SOURCEs:
-        TARGETs = CITIES.copy()
-        TARGETs.remove(SOURCE)
-        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
-        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+    # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "ChaoZhou"]
+    # for SOURCE in SOURCEs:
+    #     TARGETs = CITIES.copy()
+    #     TARGETs.remove(SOURCE)
+    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
+    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
+
+    SOURCE = "BeiJing"
+    TARGETs = CITIES.copy()
+    TARGETs.remove(SOURCE)
+    makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 6)
+    experiment2(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
 
     # c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
     # s = CITIES[0]
