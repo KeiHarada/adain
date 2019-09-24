@@ -14,6 +14,7 @@ import pandas as pd
 from source.func import makeDataset_single
 from source.func import makeDataset_multi
 from source.func import makeDataset_mmd
+from source.utility import get_dist_angle
 from source.func import objective
 from source.func import evaluate
 from source.func import re_evaluate
@@ -309,6 +310,16 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
     for tmp_i in tmp:
         accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
 
+    c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
+    lat_local = c.at[SOURCE, "latitude"]
+    lon_local = c.at[SOURCE, "longitude"]
+    distance = list()
+    for target in TARGETs:
+        lat = c.at[target, "latitude"]
+        lon = c.at[target, "longitude"]
+        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+        distance.append(str(result["distance"]/1000.0))
+
     with open(path, "a") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
@@ -324,6 +335,10 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
         for i in range(len(accuracy_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
         result.write("average,{}\n".format(",".join(accuracy)))
+        result.write("--------------------------------------------\n")
+        result.write("Distance\n")
+        result.write("----------\n")
+        result.write("distance,0.0,{}\n".format(",".join(distance)))
 
 def analysis(source, targets):
     import pandas as pd
@@ -503,6 +518,16 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
     for tmp_i in tmp:
         accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
 
+    c = pd.read_csv("rawdata/zheng2015/city.csv", index_col="name_english")
+    lat_local = c.at[SOURCE, "latitude"]
+    lon_local = c.at[SOURCE, "longitude"]
+    distance = list()
+    for target in TARGETs:
+        lat = c.at[target, "latitude"]
+        lon = c.at[target, "longitude"]
+        result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+        distance.append(str(result["distance"]/1000.0))
+
     with open(path, "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
@@ -518,6 +543,10 @@ def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
         for i in range(len(accuracy_list)):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
         result.write("average,{}\n".format(",".join(accuracy)))
+        result.write("--------------------------------------------\n")
+        result.write("Distance\n")
+        result.write("----------\n")
+        result.write("distance,0.0,{}\n".format(",".join(distance)))
 
 if __name__ == "__main__":
 
