@@ -180,7 +180,7 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs, TRAIN_RATE, VALID_RATE)
     # constant value: the number of train, validate, test datasets
     TRAIN_NUM = 5
     VALID_NUM = 1
-    TEST_NUM = 3
+    TEST_NUM = 5
 
     # to evaluate
     rmse_list = list()
@@ -537,20 +537,28 @@ if __name__ == "__main__":
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
     # our experiment
-    _CITIES = list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"])
+    # test=5stationsある都市を選択
     CITIES = list()
-    for city in _CITIES:
+    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
         with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:]
-            # train=5, valid=1, test=3の最低9stationsある都市を選択
-            if len(infile) >= 9:
-                print(city, "\t", len(infile))
+            infile = infile.readlines()[1:] # 1行目を無視
+            if len(infile) >= 5:
                 CITIES.append(city)
-    exit()
+    # 以下の都市では気象データが全部Nullだからだめ
+    CITIES.remove("JiNan")
+    CITIES.remove("HeYuan")
+    CITIES.remove("JieYang")
+    CITIES.remove("ShaoGuan")
+    CITIES.remove("DaTong")
+    CITIES.remove("DeZhou")
+    CITIES.remove("BinZhou")
+    CITIES.remove("DongYing")
+    CITIES.remove("ChenZhou")
 
-    CITIES.remove("JiNan") # JinNanでは気象データが全部Nullだからだめ
-
-    for SOURCE in CITIES[1:]:
+    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "ChaoZhou"]
+    for SOURCE in SOURCEs:
         TARGETs = CITIES.copy()
         TARGETs.remove(SOURCE)
         makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
