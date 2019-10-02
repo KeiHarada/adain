@@ -38,7 +38,6 @@ def makeDataset_mmd(source_city, target_city, data_length=None):
 
     # station data
     station_s = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
-    station_t = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
 
     '''
     make dataset
@@ -853,7 +852,7 @@ def objective(trial):
 
     # hyper parameters for constance
     batch_size = 1024
-    epochs = 200
+    epochs = 1
     lr = 0.001
     wd = 0.0005
 

@@ -1,4 +1,5 @@
 from math import *
+from torchvision import transforms
 import pandas as pd
 import numpy as np
 import overpy
