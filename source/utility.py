@@ -25,13 +25,16 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
     torch.Tensor or Variable
         Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
+
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
     if norm == 2.:
-        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True)
-        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True)
-        norms = (norms_1.expand(n_1, n_2) +
-                 norms_2.transpose(0, 1).expand(n_1, n_2))
+        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True).to("cpu")
+        norms_1 = norms_1.expand(n_1, n_2)
+        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True).to("cpu")
+        norms_2_T = torch.tensor(norms_2.numpy().transpose(1, 0))
+        norms_2 = norms_2_T.expand(n_1, n_2)
+        norms = torch.tensor(norms_1.numpy() + norms_2.numpy())
         distances_squared = norms - 2 * sample_1.mm(sample_2.t())
         return torch.sqrt(eps + torch.abs(distances_squared))
     else:

@@ -32,25 +32,32 @@ from source.utility import get_optimizer
 
 def makeDataset_mmd(source_city, target_city, data_length=None):
 
-    # output
-    source_data = list()
-    target_data = list()
-
-    # station data
-    station_s = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
-
     '''
     make dataset
     source city
     '''
+    # station data
+    station_s = pd.read_csv("database/station/station_" + source_city + ".csv", dtype=object)
+
+    # poi data
+    poi_attribute =["Arts & Entertainment", "College & University", "Event",
+                    "Food", "Nightlife Spot", "Outdoors & Recreation", "Professional & Other Places",
+                    "Residence", "Shop & Service", "Travel & Transport"]
+    dtype = {att: "float" for att in poi_attribute}
+    dtype["sid"] = "object"
+
+    poi = pd.read_csv("database/poi/poi_" + source_city + ".csv", dtype=dtype)
+    df = normalization(poi[poi_attribute])
+    poi = pd.concat([poi.drop(poi_attribute, axis=1), df], axis=1)
+
+    # road network data
     road_attribute = ["motorway", "trunk", "others"]
     dtype = {att: "float" for att in road_attribute}
     dtype["sid"] = "object"
 
-    # road network data
     road = pd.read_csv("database/road/road_" + source_city + ".csv", dtype=dtype)
     df = normalization(road[road_attribute])
-    source = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
+    road = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
 
     # meteorological data
     meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
@@ -73,16 +80,89 @@ def makeDataset_mmd(source_city, target_city, data_length=None):
     for sid in list(station_s["sid"]):
 
         did = list(station_s[station_s["sid"] == sid]["did"])[0]
-        mete_station = mete[mete["did"] == did]
+        if data_length is None:
+            mete_tmp = mete[mete["did"] == did]
+        else:
+            mete_tmp = mete[mete["did"] == did][:data_length]
+        mete_tmp = mete_tmp.drop(["did"], axis=1).reset_index(drop=True)
+        df = pd.DataFrame({"sid": [sid]*len(mete_tmp)})
+        mete_tmp = pd.concat([df, mete_tmp], axis=1)
 
         if sid == list(station_s["sid"])[0]:
-            meteorology = mete_station
+            meteorology = mete_tmp
         else:
-            meteorology = pd.concat([meteorology, mete_station], axis=0, ignore_index=True)
+            meteorology = pd.concat([meteorology, mete_tmp], axis=0, ignore_index=True)
 
-    print(list(source["sid"]))
-    print(meteorology.columns)
-    source = pd.concat([source, meteorology], axis=1)
+    source_data = pd.merge(meteorology, poi, on="sid")
+    source_data = pd.merge(source_data, road, on="sid")
+    source_data = source_data.drop(["sid", "time"], axis=1)
+    source_data = torch.from_numpy(source_data.values)
+
+    '''
+    make dataset
+    target city
+    '''
+    # station data
+    station_t = pd.read_csv("database/station/station_" + target_city + ".csv", dtype=object)
+
+    # poi data
+    poi_attribute =["Arts & Entertainment", "College & University", "Event",
+                    "Food", "Nightlife Spot", "Outdoors & Recreation", "Professional & Other Places",
+                    "Residence", "Shop & Service", "Travel & Transport"]
+    dtype = {att: "float" for att in poi_attribute}
+    dtype["sid"] = "object"
+
+    poi = pd.read_csv("database/poi/poi_" + target_city + ".csv", dtype=dtype)
+    df = normalization(poi[poi_attribute])
+    poi = pd.concat([poi.drop(poi_attribute, axis=1), df], axis=1)
+
+    # road network data
+    road_attribute = ["motorway", "trunk", "others"]
+    dtype = {att: "float" for att in road_attribute}
+    dtype["sid"] = "object"
+
+    road = pd.read_csv("database/road/road_" + target_city + ".csv", dtype=dtype)
+    df = normalization(road[road_attribute])
+    road = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
+
+    # meteorological data
+    meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
+    dtype = {att: "float" for att in meteorology_attribute}
+    dtype["did"], dtype["time"] = "object", "object"
+
+    mete = pd.read_csv("database/meteorology/meteorology_" + target_city + ".csv", dtype=dtype)
+    meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+    df = normalization(data_interpolate(mete[meteorology_attribute]))
+    mete = pd.concat([mete.drop(meteorology_attribute, axis=1), df], axis=1)
+
+    df, columns = weather_onehot(mete["weather"])
+    mete = pd.concat([mete.drop(["weather"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    df, columns = winddirection_onehot(mete["wind_direction"])
+    mete = pd.concat([mete.drop(["wind_direction"], axis=1), df], axis=1)
+    meteorology_attribute += columns
+
+    for sid in list(station_t["sid"]):
+
+        did = list(station_t[station_t["sid"] == sid]["did"])[0]
+        if data_length is None:
+            mete_tmp = mete[mete["did"] == did]
+        else:
+            mete_tmp = mete[mete["did"] == did][:data_length]
+        mete_tmp = mete_tmp.drop(["did"], axis=1).reset_index(drop=True)
+        df = pd.DataFrame({"sid": [sid]*len(mete_tmp)})
+        mete_tmp = pd.concat([df, mete_tmp], axis=1)
+
+        if sid == list(station_t["sid"])[0]:
+            meteorology = mete_tmp
+        else:
+            meteorology = pd.concat([meteorology, mete_tmp], axis=0, ignore_index=True)
+
+    target_data = pd.merge(meteorology, poi, on="sid")
+    target_data = pd.merge(target_data, road, on="sid")
+    target_data = target_data.drop(["sid", "time"], axis=1)
+    target_data = torch.from_numpy(target_data.values)
 
     return source_data, target_data
 
