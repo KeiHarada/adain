@@ -852,7 +852,7 @@ def objective(trial):
 
     # hyper parameters for constance
     batch_size = 1024
-    epochs = 1
+    epochs = 200
     lr = 0.001
     wd = 0.0005
 
@@ -960,7 +960,7 @@ def validate(model, validData):
     result = []
     result_label = []
 
-    batch_size = 2000
+    batch_size = 5000
 
     for batch_i in torch.utils.data.DataLoader(validData, batch_size=batch_size, shuffle=False):
 
@@ -1016,7 +1016,7 @@ def evaluate(model_state_dict, station_train, station_test):
     testData = MyDataset(makeTestData(station_test, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
-    batch_size = 2000
+    batch_size = 5000
     iteration = 0
     for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
@@ -1076,7 +1076,7 @@ def re_evaluate(model_state_dict, station_train, station_test, loop, city):
     testData = MyDataset(makeTestData(station_test, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
-    batch_size = 2000
+    batch_size = 5000
     iteration = 0
     for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 

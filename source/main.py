@@ -759,7 +759,7 @@ if __name__ == "__main__":
     # for SOURCE in SOURCEs:
     #     TARGETs = CITIES.copy()
     #     TARGETs.remove(SOURCE)
-    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*1)
+    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
     #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
 
     '''
@@ -787,10 +787,10 @@ if __name__ == "__main__":
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    for SOURCE in SOURCEs[:1]:
+    for SOURCE in SOURCEs:
         TARGETs = CITIES.copy()
         TARGETs.remove(SOURCE)
-        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*1)
+        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*6)
         experiment2(TRIAL, ATTRIBUTE, SOURCE, TARGETs, VALID_RATE)
 
     '''
