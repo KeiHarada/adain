@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import overpy
 import torch
+import resource
 import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
@@ -25,6 +26,11 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
     torch.Tensor or Variable
         Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
+
+    rsrc = resource.RLIMIT_AS
+    soft, hard = resource.getrlimit(rsrc)
+    soft = -1
+    resource.setrlimit(rsrc, (soft, hard))
 
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
