@@ -855,7 +855,7 @@ if __name__ == "__main__":
                 outfile.write(SOURCE)
                 for TARGET in CITIES:
                     print("\t * TARGET = " + TARGET)
-                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*1)
+                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*6)
                     mmd = MMD(source_data.size()[0], target_data.size()[0])
                     result = mmd(source_data, target_data, alphas=[alpha])
                     result = float(result) * float(result)
