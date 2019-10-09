@@ -737,32 +737,32 @@ if __name__ == "__main__":
     Experiment1:
     仮説検証のためのone-to-oneの実験
     '''
-    # # test=5stationsある都市を選択
-    # # 気象データが全部Nullの都市は無視
-    # CITIES = list()
-    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-    #     with open("database/station/station_"+city+".csv", "r") as infile:
-    #         infile = infile.readlines()[1:] # 1行目を無視
-    #         if len(infile) >= 5:
-    #             CITIES.append(city)
-    # CITIES.remove("JiNan")
-    # CITIES.remove("HeYuan")
-    # CITIES.remove("JieYang")
-    # CITIES.remove("ShaoGuan")
-    # CITIES.remove("DaTong")
-    # CITIES.remove("DeZhou")
-    # CITIES.remove("BinZhou")
-    # CITIES.remove("DongYing")
-    # CITIES.remove("ChenZhou")
-    #
-    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    # for SOURCE in SOURCEs:
-    #     TARGETs = CITIES.copy()
-    #     TARGETs.remove(SOURCE)
-    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*1)
-    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
+    # test=5stationsある都市を選択
+    # 気象データが全部Nullの都市は無視
+    CITIES = list()
+    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+        with open("database/station/station_"+city+".csv", "r") as infile:
+            infile = infile.readlines()[1:] # 1行目を無視
+            if len(infile) >= 5:
+                CITIES.append(city)
+    CITIES.remove("JiNan")
+    CITIES.remove("HeYuan")
+    CITIES.remove("JieYang")
+    CITIES.remove("ShaoGuan")
+    CITIES.remove("DaTong")
+    CITIES.remove("DeZhou")
+    CITIES.remove("BinZhou")
+    CITIES.remove("DongYing")
+    CITIES.remove("ChenZhou")
+
+    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    for SOURCE in SOURCEs:
+        TARGETs = CITIES.copy()
+        TARGETs.remove(SOURCE)
+        makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*3)
+        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
 
     '''
     Experiment2:
@@ -817,52 +817,52 @@ if __name__ == "__main__":
     '''
     MMD計算
     '''
-    # test=5stationsある都市を選択
-    # 気象データが全部Nullの都市は無視
-    memory_limit()
-    CITIES = list()
-    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-        with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:] # 1行目を無視
-            if len(infile) >= 5:
-                CITIES.append(city)
-    CITIES.remove("JiNan")
-    CITIES.remove("HeYuan")
-    CITIES.remove("JieYang")
-    CITIES.remove("ShaoGuan")
-    CITIES.remove("DaTong")
-    CITIES.remove("DeZhou")
-    CITIES.remove("BinZhou")
-    CITIES.remove("DongYing")
-    CITIES.remove("ChenZhou")
-
-    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    for alpha in [0.1, 1.0, 10.0]:
-
-        if alpha == 0.1:
-            label = "01"
-        elif alpha == 1.0:
-            label = "1"
-        else:
-            label = "10"
-
-        print("--- alpha = " + label + "---")
-
-        with open("result/result_mmd_"+label+".csv", "w") as outfile:
-            outfile.write("target,{}\n".format(",".join(CITIES)))
-            for SOURCE in SOURCEs:
-                print("* SOURCE = " + SOURCE)
-                outfile.write(SOURCE)
-                for TARGET in CITIES:
-                    print("\t * TARGET = " + TARGET)
-                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*3)
-                    mmd = MMD(source_data.size()[0], target_data.size()[0])
-                    result = mmd(source_data, target_data, alphas=[alpha])
-                    result = float(result) * float(result)
-                    outfile.write(",{}".format(str(result)))
-                outfile.write("\n")
+    # # test=5stationsある都市を選択
+    # # 気象データが全部Nullの都市は無視
+    # memory_limit()
+    # CITIES = list()
+    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+    #     with open("database/station/station_"+city+".csv", "r") as infile:
+    #         infile = infile.readlines()[1:] # 1行目を無視
+    #         if len(infile) >= 5:
+    #             CITIES.append(city)
+    # CITIES.remove("JiNan")
+    # CITIES.remove("HeYuan")
+    # CITIES.remove("JieYang")
+    # CITIES.remove("ShaoGuan")
+    # CITIES.remove("DaTong")
+    # CITIES.remove("DeZhou")
+    # CITIES.remove("BinZhou")
+    # CITIES.remove("DongYing")
+    # CITIES.remove("ChenZhou")
+    #
+    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    # for alpha in [0.1, 1.0, 10.0]:
+    #
+    #     if alpha == 0.1:
+    #         label = "01"
+    #     elif alpha == 1.0:
+    #         label = "1"
+    #     else:
+    #         label = "10"
+    #
+    #     print("--- alpha = " + label + "---")
+    #
+    #     with open("result/result_mmd_"+label+".csv", "w") as outfile:
+    #         outfile.write("target,{}\n".format(",".join(CITIES)))
+    #         for SOURCE in SOURCEs:
+    #             print("* SOURCE = " + SOURCE)
+    #             outfile.write(SOURCE)
+    #             for TARGET in CITIES:
+    #                 print("\t * TARGET = " + TARGET)
+    #                 source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*3)
+    #                 mmd = MMD(source_data.size()[0], target_data.size()[0])
+    #                 result = mmd(source_data, target_data, alphas=[alpha])
+    #                 result = float(result) * float(result)
+    #                 outfile.write(",{}".format(str(result)))
+    #             outfile.write("\n")
 
     '''
     再実験

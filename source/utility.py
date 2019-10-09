@@ -11,7 +11,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 def memory_limit():
     free_memory = get_memory()
-    soft = free_memory * 1024 * 0.9
+    soft = free_memory * 1024 * 0.8
     hard = free_memory * 1024
     resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
 
