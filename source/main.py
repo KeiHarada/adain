@@ -839,7 +839,6 @@ if __name__ == "__main__":
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    SOURCEs = ["GuangZhou", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
     for alpha in [0.1, 1.0, 10.0]:
 
         if alpha == 0.1:
@@ -857,9 +856,8 @@ if __name__ == "__main__":
                 print("* SOURCE = " + SOURCE)
                 outfile.write(SOURCE)
                 for TARGET in CITIES:
-                    TARGET = "GuangZhou"
                     print("\t * TARGET = " + TARGET)
-                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*1)
+                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24*30*3)
                     mmd = MMD(source_data.size()[0], target_data.size()[0])
                     result = mmd(source_data, target_data, alphas=[alpha])
                     result = float(result) * float(result)
