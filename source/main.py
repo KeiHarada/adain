@@ -839,6 +839,7 @@ if __name__ == "__main__":
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    SOURCEs = ["GuangZhou", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
     for alpha in [0.1, 1.0, 10.0]:
 
         if alpha == 0.1:
