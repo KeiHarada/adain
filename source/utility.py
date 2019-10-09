@@ -9,6 +9,21 @@ import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
 
+def memory_limit():
+    free_memory = get_memory()
+    soft = free_memory * 1024 * 0.8
+    hard = free_memory * 1024
+    resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
+
+def get_memory():
+    with open('/proc/meminfo', 'r') as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                free_memory += int(sline[1])
+    return free_memory
+
 def pdist(sample_1, sample_2, norm=2, eps=1e-5):
     r"""Compute the matrix of all squared pairwise distances.
 
@@ -27,10 +42,7 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
         Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
 
-    rsrc = resource.RLIMIT_AS
-    soft, hard = resource.getrlimit(rsrc)
-    soft = -1
-    resource.setrlimit(rsrc, (soft, hard))
+    memory_limit()
 
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
