@@ -42,8 +42,6 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
         Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
 
-    memory_limit()
-
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
     if norm == 2.:

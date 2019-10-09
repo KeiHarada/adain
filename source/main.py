@@ -16,6 +16,7 @@ from source.func import makeDataset_multi
 from source.func import makeDataset_mmd
 from source.utility import get_dist_angle
 from source.utility import MMD
+from source.utility import memory_limit
 from source.func import objective
 from source.func import evaluate
 from source.func import re_evaluate
@@ -818,6 +819,7 @@ if __name__ == "__main__":
     '''
     # test=5stationsある都市を選択
     # 気象データが全部Nullの都市は無視
+    memory_limit()
     CITIES = list()
     for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
         with open("database/station/station_"+city+".csv", "r") as infile:
