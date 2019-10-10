@@ -24,52 +24,32 @@ def get_memory():
                 free_memory += int(sline[1])
     return free_memory
 
-def pdist(sample_1, sample_2, norm=2, eps=1e-5):
-    r"""Compute the matrix of all squared pairwise distances.
+def pdist(sample_1, sample_2, eps=1e-5):
 
-    Arguments
-    ---------
-    sample_1 : torch.Tensor or Variable
-        The first sample, should be of shape ``(n_1, d)``.
-    sample_2 : torch.Tensor or Variable
-        The second sample, should be of shape ``(n_2, d)``.
-    norm : float
-        The l_p norm to be used.
+    '''
+    :param sample_1: numpy
+    :param sample_2: numpy
+    :param eps: float
+    :return: numpy
+    '''
 
-    Returns
-    -------
-    torch.Tensor or Variable
-        Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
-        ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
+    n_1, n_2 = sample_1.shape[0], sample_2.shape[0]
+    print(sample_1.shape)
+    print(sample_2.shape)
+    norm_1 = np.sum(sample_1**2, dim=1, keepdim=True)
+    print(norm_1.shape)
+    norm_1 = np.tile(norm_1, (1, n_2))
+    print(norm_1.shape)
+    norm_2 = np.sum(sample_2**2, dim=1, keepdim=True)
+    print(norm_2.shape)
+    norm_2 = np.tile(norm_2.transpose(), (n_1, 1))
+    print(norm_2.shape)
+    norm_2 = norm_1 + norm_2 - 2 * np.dot(sample_1, sample_2.transpose())
 
-    n_1, n_2 = sample_1.size(0), sample_2.size(0)
-    if norm == 2.:
-        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True).to("cpu")
-        print(norms_1.size())
-        norms_1 = norms_1.expand(n_1, n_2)
-        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True).to("cpu")
-        norms_2_T = torch.tensor(norms_2.numpy().transpose(1, 0))
-        norms_2 = norms_2_T.expand(n_1, n_2)
-        norms = torch.tensor(norms_1.numpy() + norms_2.numpy())
-        distances_squared = norms - 2 * sample_1.mm(sample_2.t())
-        return torch.sqrt(eps + torch.abs(distances_squared))
-    else:
-        dim = sample_1.size(1)
-        expanded_1 = sample_1.unsqueeze(1).expand(n_1, n_2, dim)
-        expanded_2 = sample_2.unsqueeze(0).expand(n_1, n_2, dim)
-        differences = torch.abs(expanded_1 - expanded_2) ** norm
-        inner = torch.sum(differences, dim=2, keepdim=False)
-        return (eps + inner) ** (1. / norm)
+    return np.sqrt(eps + np.abs(norm_2))
 
 class MMD:
     r"""The *unbiased* MMD test of :cite:`gretton2012kernel`.
-
-    The kernel used is equal to:
-
-    .. math ::
-        k(x, x') = \sum_{j=1}^k e^{-\alpha_j\|x - x'\|^2},
-
-    for the :math:`\alpha_j` proved in :py:meth:`~.MMDStatistic.__call__`.
 
     Arguments
     ---------
@@ -78,72 +58,54 @@ class MMD:
     n_2: int
         The number of points in the second sample."""
 
-    def __init__(self, n_1, n_2):
-        self.n_1 = n_1
-        self.n_2 = n_2
+    def __init__(self, n_x, n_y):
+        self.n_x = n_x
+        self.n_y = n_y
 
         # The three constants used in the test.
-        self.a00 = 1. / (n_1 * (n_1 - 1))
-        self.a11 = 1. / (n_2 * (n_2 - 1))
-        self.a01 = - 1. / (n_1 * n_2)
+        self.axx = 1. / (n_x * (n_x - 1))
+        self.ayy = 1. / (n_y * (n_y - 1))
+        self.axy = - 2. / (n_x * n_y)
 
-    def __call__(self, sample_1, sample_2, alphas, ret_matrix=False):
-        r"""Evaluate the statistic.
+    def __call__(self, X, Y, alpha):
+
+        '''
+        MMD(X, Y) is
+
+            1/n(n-1) \sum_{a!=b}^{n} k(x_a, x_b)
+                + 1/m(m-1) \sum_{c!=d}^{m} k(y_c, y_d)
+                    - 2/nm \sum_{a=1}^{n} \sum_{c=1}^{m} k(x_a, y_c)
+
+        for the kernel k.
 
         The kernel used is
-
-        .. math::
 
             k(x, x') = \sum_{j=1}^k e^{-\alpha_j \|x - x'\|^2},
 
         for the provided ``alphas``.
 
-        Arguments
-        ---------
-        sample_1: :class:`torch:torch.autograd.Variable`
-            The first sample, of size ``(n_1, d)``.
-        sample_2: variable of shape (n_2, d)
-            The second sample, of size ``(n_2, d)``.
-        alphas : list of :class:`float`
-            The kernel parameters.
-        ret_matrix: bool
-            If set, the call with also return a second variable.
-
-            This variable can be then used to compute a p-value using
-            :py:meth:`~.MMDStatistic.pval`.
-
         Returns
         -------
         :class:`float`
             The test statistic.
-        :class:`torch:torch.autograd.Variable`
-            Returned only if ``ret_matrix`` was set to true."""
+        '''
 
-        print(sample_1.size())
-        print(sample_2.size())
-        sample_12 = torch.cat((sample_1, sample_2), 0)
-        distances = pdist(sample_12, sample_12, norm=2)
+        # XX
+        distance = pdist(sample_1=X, sample_2=X)
+        XX = np.exp(-1 * alpha * distance ** 2)
+        XX = XX.sum() - np.trace(XX)
 
-        kernels = None
-        for alpha in alphas:
-            kernels_a = torch.exp(- alpha * distances ** 2)
-            if kernels is None:
-                kernels = kernels_a
-            else:
-                kernels = kernels + kernels_a
+        # YY
+        distance = pdist(sample_1=Y, sample_2=Y)
+        YY = np.exp(-1 * alpha * distance ** 2)
+        YY = YY.sum() - np.trace(YY)
 
-        k_1 = kernels[:self.n_1, :self.n_1]
-        k_2 = kernels[self.n_1:, self.n_1:]
-        k_12 = kernels[:self.n_1, self.n_1:]
+        # XY
+        distance = pdist(sample_1=X, sample_2=Y)
+        XY = np.exp(-1 * alpha * distance ** 2)
+        XY = XY.sum()
 
-        mmd = (2 * self.a01 * k_12.sum() +
-               self.a00 * (k_1.sum() - torch.trace(k_1)) +
-               self.a11 * (k_2.sum() - torch.trace(k_2)))
-
-        if ret_matrix:
-            return mmd, kernels
-        else:
-            return mmd
+        return (self.axx * XX) + (self.ayy * YY) + (self.axy * XY)
 
 class MyDataset(torch.utils.data.Dataset):
 

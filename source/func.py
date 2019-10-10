@@ -96,7 +96,7 @@ def makeDataset_mmd(source_city, target_city, data_length=None):
     source_data = pd.merge(meteorology, poi, on="sid")
     source_data = pd.merge(source_data, road, on="sid")
     source_data = source_data.drop(["sid", "time"], axis=1)
-    source_data = torch.from_numpy(source_data.values)
+    source_data = source_data.values
 
     '''
     make dataset
@@ -162,8 +162,9 @@ def makeDataset_mmd(source_city, target_city, data_length=None):
     target_data = pd.merge(meteorology, poi, on="sid")
     target_data = pd.merge(target_data, road, on="sid")
     target_data = target_data.drop(["sid", "time"], axis=1)
-    target_data = torch.from_numpy(target_data.values)
+    target_data = target_data.values
 
+    # return as a type of numpy
     return source_data, target_data
 
 

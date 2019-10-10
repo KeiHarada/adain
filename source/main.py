@@ -862,7 +862,7 @@ if __name__ == "__main__":
                     print("\t * TARGET = " + TARGET)
                     source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 10)
                     mmd = MMD(source_data.size()[0], target_data.size()[0])
-                    result = mmd(source_data, target_data, alphas=[alpha])
+                    result = mmd(source_data, target_data, alpha=alpha)
                     result = float(result) * float(result)
                     exit()
                     outfile.write(",{}".format(str(result)))
