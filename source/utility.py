@@ -43,9 +43,9 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
 
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
-    norm = float(norm)
     if norm == 2.:
         norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True).to("cpu")
+        print(norms_1.size())
         norms_1 = norms_1.expand(n_1, n_2)
         norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True).to("cpu")
         norms_2_T = torch.tensor(norms_2.numpy().transpose(1, 0))
@@ -118,6 +118,9 @@ class MMD:
             The test statistic.
         :class:`torch:torch.autograd.Variable`
             Returned only if ``ret_matrix`` was set to true."""
+
+        print(sample_1.size())
+        print(sample_2.size())
         sample_12 = torch.cat((sample_1, sample_2), 0)
         distances = pdist(sample_12, sample_12, norm=2)
 
@@ -136,6 +139,7 @@ class MMD:
         mmd = (2 * self.a01 * k_12.sum() +
                self.a00 * (k_1.sum() - torch.trace(k_1)) +
                self.a11 * (k_2.sum() - torch.trace(k_2)))
+
         if ret_matrix:
             return mmd, kernels
         else:
