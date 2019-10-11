@@ -34,18 +34,13 @@ def pdist(sample_1, sample_2, eps=1e-5):
     '''
 
     n_1, n_2 = sample_1.shape[0], sample_2.shape[0]
-    print(sample_1.shape)
-    print(sample_2.shape)
+
     norm_1 = np.sum(sample_1**2, axis=1, keepdims=True)
-    print(norm_1.shape)
     norm_1 = np.tile(norm_1, (1, n_2))
-    print(norm_1.shape)
+
     norm_2 = np.sum(sample_2**2, axis=1, keepdims=True)
-    print(norm_2.shape)
-    norm_2 = norm_2.transpose()
-    print(norm_2.shape)
-    norm_2 = np.tile(norm_2, (n_1, 1))
-    print(norm_2.shape)
+    norm_2 = np.tile(norm_2.transpose(), (n_1, 1))
+
     norm_2 = norm_1 + norm_2 - 2 * np.dot(sample_1, sample_2.transpose())
 
     return np.sqrt(eps + np.abs(norm_2))
