@@ -861,7 +861,7 @@ if __name__ == "__main__":
                 for TARGET in CITIES:
                     print("\t * TARGET = " + TARGET)
                     source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 10)
-                    mmd = MMD(source_data.size()[0], target_data.size()[0])
+                    mmd = MMD(source_data.shape[0], target_data.shape[0])
                     result = mmd(source_data, target_data, alpha=alpha)
                     result = float(result) * float(result)
                     exit()
