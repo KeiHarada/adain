@@ -504,6 +504,168 @@ def experiment2(TRIAL, ATTRIBUTE, SOURCE, TARGETs, VALID_RATE):
         result.write("----------\n")
         result.write("distance,0.0,{}\n".format(",".join(distance)))
 
+def experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET):
+
+    '''
+    Train: CITIEs
+    Test: a CITY
+    '''
+
+    # input dimension
+    dataDim = pickle.load(open("dataset/dataDim.pickle", "rb"))
+    inputDim_local_static = dataDim["static"] # static attribute
+    inputDim_local_seq = dataDim["sequence"]  # sequence attribute
+    inputDim_others_static = dataDim["static"] + 2  # static attribute + distance + angle
+    inputDim_others_seq = dataDim["sequence"] + 1  # sequence attribute + an aqi value
+
+    # save input dimension
+    with open("model/inputDim.pickle", "wb") as fl:
+        dc = {"local_static": inputDim_local_static, "local_seq": inputDim_local_seq,
+              "others_static": inputDim_others_static, "others_seq": inputDim_others_seq}
+        pickle.dump(dc, fl)
+
+    # load source and target stations
+    station_source = []
+    for i in range(len(SOURCEs)):
+        station_source.append(pickle.load(open("dataset/station_"+SOURCEs[i]+".pickle", "rb")))
+
+    station_target = pickle.load(open("dataset/station_"+TARGET+".pickle", "rb"))
+
+    # constant value: the number of train, validate, test datasets
+    TRAIN_NUM = 5
+    VALID_NUM = 1
+    TEST_NUM = 5
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    # statictics of dataset
+    print("# of train = "+str(TRAIN_NUM))
+    print("# of valid = "+str(VALID_NUM))
+    print("# of test = "+str(TEST_NUM))
+
+    for loop in range(LOOP):
+
+        # to evaluate
+        rmse_tmp = list()
+        accuracy_tmp = list()
+
+        print("---LOOP " + str(loop).zfill(2) + "---")
+        start = time.time()
+
+        # shuffle for LOOP
+        source = []
+        for i in range(len(SOURCEs)):
+            source.append(station_source[i].copy())
+            random.shuffle(source[i])
+
+        target = station_target.copy()
+        random.shuffle(target)
+
+        # select train, validate, test sets
+        train = []
+        for i in range(len(source)):
+            train += source[:TRAIN_NUM]
+
+        valid = target[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
+        test = target[TRAIN_NUM+VALID_NUM:TRAIN_NUM+VALID_NUM+TEST_NUM]
+
+        # saving train, valid, test sets
+        with open("tmp/trainset.pickle", "wb") as pl:
+            pickle.dump(train, pl)
+        with open("tmp/validset.pickle", "wb") as pl:
+            pickle.dump(valid, pl)
+        with open("tmp/testset.pickle", "wb") as pl:
+            pickle.dump(test, pl)
+
+        # training & parameter tuning by optuna
+        # -- activate function, optimizer, eopchs, batch size
+        print("train")
+        study = optuna.create_study()
+        study.optimize(objective, n_trials=TRIAL)
+
+        # save best model
+        model_state_dict = torch.load("tmp/" + str(study.best_trial.number).zfill(4) + "_model.pickle")
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", TARGET)
+        with open(path, "wb") as pl:
+            pickle.dump(model_state_dict, pl)
+
+        # save dataset
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", TARGET)
+        with open(path, "wb") as pl:
+            pickle.dump(train, pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", TARGET)
+        with open(path, "wb") as pl:
+            pickle.dump(valid, pl)
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGET)
+        with open(path, "wb") as pl:
+            pickle.dump(test, pl)
+
+        # save train log
+        with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
+            log = pickle.load(pl)
+            path = "log/{}_{}_{}_{}.csv".format(ATTRIBUTE, str(loop).zfill(2), "log", TARGET)
+            log.to_csv(path, index=False)
+
+        # load best model
+        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", TARGET)
+        model_state_dict = pickle.load(open(path, "rb"))
+
+        # evaluate
+        print("* evaluate")
+        rmse, accuracy = evaluate(model_state_dict, train, test)
+        rmse_tmp.append(rmse)
+        accuracy_tmp.append(accuracy)
+
+        rmse_list.append(rmse_tmp)
+        accuracy_list.append(accuracy_tmp)
+
+        # time point
+        t = (time.time() - start) / (60 * 60)
+        print("time = " + str(t) + " [hours]")
+        print("---LOOP " + str(loop).zfill(2) + "---")
+
+    path = "result/result_{}_{}.csv".format(ATTRIBUTE, TARGET)
+    with open(path, "w") as result:
+        result.write("--------------------------------------------\n" +
+                     "TARGET_CITY = " + TARGET + "\n" +
+                     "MODEL_ATTRIBUTE = " + ATTRIBUTE + "\n" +
+                     "TRAIN_NUM = " + str(TRAIN_NUM) + "\n" +
+                     "VAlID_NUM = " + str(VALID_NUM) + "\n" +
+                     "TEST_NUM = " + str(TEST_NUM) + "\n" +
+                     "--------------------------------------------\n")
+    # to output
+    rmse = np.average(np.array(rmse_list), axis=0)
+    rmse = list(map(lambda x: str(x), rmse))
+    tmp = rmse_list.copy()
+    rmse_list = []
+    for tmp_i in tmp:
+        rmse_list.append(list(map(lambda x: str(x), tmp_i)))
+
+    accuracy = np.average(np.array(accuracy_list), axis=0)
+    accuracy = list(map(lambda x: str(x), accuracy))
+    tmp = accuracy_list.copy()
+    accuracy_list = []
+    for tmp_i in tmp:
+        accuracy_list.append(list(map(lambda x: str(x), tmp_i)))
+
+    with open(path, "a") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(TARGET))
+        for i in range(len(rmse_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(rmse_list[i])))
+        result.write("average,{}\n".format(",".join(rmse)))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("model,{}\n".format(TARGET))
+        for i in range(len(accuracy_list)):
+            result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_list[i])))
+        result.write("average,{}\n".format(",".join(accuracy)))
+
 def analysis(source, targets):
     import pandas as pd
     from sklearn.metrics import mean_squared_error
@@ -724,7 +886,7 @@ if __name__ == "__main__":
     TRAIN_RATE = 0.67
     VALID_RATE = 0.1
     LSTM_DATA_WIDTH = 24
-    LOOP = 1
+    LOOP = 10
     TRIAL = 1
 
     '''
@@ -736,35 +898,37 @@ if __name__ == "__main__":
     #makeDataset_single(SOURCE, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30)
     #experiment0(LOOP, TRIAL, ATTRIBUTE, SOURCE, TRAIN_RATE, VALID_RATE)
 
-    # '''
-    # Experiment1:
-    # 仮説検証のためのone-to-oneの実験
-    # '''
+    '''
+    Experiment1:
+    仮説検証のためのone-to-oneの実験
+    '''
     # # test=5stationsある都市を選択
     # # 気象データが全部Nullの都市は無視
-    # CITIES = list()
+    # CITIEs = list()
     # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
     #     with open("database/station/station_"+city+".csv", "r") as infile:
     #         infile = infile.readlines()[1:] # 1行目を無視
     #         if len(infile) >= 5:
-    #             CITIES.append(city)
-    # CITIES.remove("JiNan")
-    # CITIES.remove("HeYuan")
-    # CITIES.remove("JieYang")
-    # CITIES.remove("ShaoGuan")
-    # CITIES.remove("DaTong")
-    # CITIES.remove("DeZhou")
-    # CITIES.remove("BinZhou")
-    # CITIES.remove("DongYing")
-    # CITIES.remove("ChenZhou")
+    #             CITIEs.append(city)
+    # CITIEs.remove("JiNan")
+    # CITIEs.remove("HeYuan")
+    # CITIEs.remove("JieYang")
+    # CITIEs.remove("ShaoGuan")
+    # CITIEs.remove("DaTong")
+    # CITIEs.remove("DeZhou")
+    # CITIEs.remove("BinZhou")
+    # CITIEs.remove("DongYing")
+    # CITIEs.remove("ChenZhou")
+    #
+    # # make dataset
+    # makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
     #
     # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
     # for SOURCE in SOURCEs:
-    #     TARGETs = CITIES.copy()
+    #     TARGETs = CITIEs.copy()
     #     TARGETs.remove(SOURCE)
-    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*3)
     #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
 
     '''
@@ -773,30 +937,63 @@ if __name__ == "__main__":
     '''
     # # test=5stationsある都市を選択
     # # 気象データが全部Nullの都市は無視
-    # CITIES = list()
+    # CITIEs = list()
     # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
     #     with open("database/station/station_"+city+".csv", "r") as infile:
     #         infile = infile.readlines()[1:] # 1行目を無視
     #         if len(infile) >= 5:
-    #             CITIES.append(city)
-    # CITIES.remove("JiNan")
-    # CITIES.remove("HeYuan")
-    # CITIES.remove("JieYang")
-    # CITIES.remove("ShaoGuan")
-    # CITIES.remove("DaTong")
-    # CITIES.remove("DeZhou")
-    # CITIES.remove("BinZhou")
-    # CITIES.remove("DongYing")
-    # CITIES.remove("ChenZhou")
+    #             CITIEs.append(city)
+    # CITIEs.remove("JiNan")
+    # CITIEs.remove("HeYuan")
+    # CITIEs.remove("JieYang")
+    # CITIEs.remove("ShaoGuan")
+    # CITIEs.remove("DaTong")
+    # CITIEs.remove("DeZhou")
+    # CITIEs.remove("BinZhou")
+    # CITIEs.remove("DongYing")
+    # CITIEs.remove("ChenZhou")
+    #
+    # # make dataset
+    # makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
     #
     # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
     # for SOURCE in SOURCEs:
-    #     TARGETs = CITIES.copy()
+    #     TARGETs = CITIEs.copy()
     #     TARGETs.remove(SOURCE)
-    #     makeDataset_multi(SOURCE, TARGETs, ATTRIBUTE, LSTM_DATA_WIDTH, 24*30*1)
     #     experiment2(TRIAL, ATTRIBUTE, SOURCE, TARGETs, VALID_RATE)
+
+    '''
+    Experiment3:
+    マルチソースで実験
+    '''
+    # test=5stationsある都市を選択
+    # 気象データが全部Nullの都市は無視3
+    CITIEs = list()
+    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+        with open("database/station/station_"+city+".csv", "r") as infile:
+            infile = infile.readlines()[1:] # 1行目を無視
+            if len(infile) >= 5:
+                CITIEs.append(city)
+    CITIEs.remove("JiNan")
+    CITIEs.remove("HeYuan")
+    CITIEs.remove("JieYang")
+    CITIEs.remove("ShaoGuan")
+    CITIEs.remove("DaTong")
+    CITIEs.remove("DeZhou")
+    CITIEs.remove("BinZhou")
+    CITIEs.remove("DongYing")
+    CITIEs.remove("ChenZhou")
+
+    # make dataset
+    makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
+
+    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    TARGETs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    for TARGET in TARGETs:
+        experiment3(LOOP, TRIAL, ATTRIBUTE, CITIEs, TARGET)
 
     '''
     距離計算
@@ -820,52 +1017,52 @@ if __name__ == "__main__":
     '''
     MMD計算
     '''
-    # test=5stationsある都市を選択
-    # 気象データが全部Nullの都市は無視
-    #memory_limit()
-    CITIES = list()
-    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-        with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:] # 1行目を無視
-            if len(infile) >= 5:
-                CITIES.append(city)
-    CITIES.remove("JiNan")
-    CITIES.remove("HeYuan")
-    CITIES.remove("JieYang")
-    CITIES.remove("ShaoGuan")
-    CITIES.remove("DaTong")
-    CITIES.remove("DeZhou")
-    CITIES.remove("BinZhou")
-    CITIES.remove("DongYing")
-    CITIES.remove("ChenZhou")
-
-    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    for alpha in [0.1, 1.0, 10.0]:
-
-        if alpha == 0.1:
-            label = "01"
-        elif alpha == 1.0:
-            label = "1"
-        else:
-            label = "10"
-
-        print("--- alpha = " + label + "---")
-
-        with open("result/result_mmd_"+label+".csv", "w") as outfile:
-            outfile.write("target,{}\n".format(",".join(CITIES)))
-            for SOURCE in SOURCEs:
-                print("* SOURCE = " + SOURCE)
-                outfile.write(SOURCE)
-                for TARGET in CITIES:
-                    print("\t * TARGET = " + TARGET)
-                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24 * 30 * 6)
-                    mmd = MMD(source_data.shape[0], target_data.shape[0])
-                    result = mmd(source_data, target_data, alpha=alpha)
-                    result = float(result) * float(result)
-                    outfile.write(",{}".format(str(result)))
-                outfile.write("\n")
+    # # test=5stationsある都市を選択
+    # # 気象データが全部Nullの都市は無視
+    # #memory_limit()
+    # CITIEs = list()
+    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+    #     with open("database/station/station_"+city+".csv", "r") as infile:
+    #         infile = infile.readlines()[1:] # 1行目を無視
+    #         if len(infile) >= 5:
+    #             CITIEs.append(city)
+    # CITIEs.remove("JiNan")
+    # CITIEs.remove("HeYuan")
+    # CITIEs.remove("JieYang")
+    # CITIEs.remove("ShaoGuan")
+    # CITIEs.remove("DaTong")
+    # CITIEs.remove("DeZhou")
+    # CITIEs.remove("BinZhou")
+    # CITIEs.remove("DongYing")
+    # CITIEs.remove("ChenZhou")
+    #
+    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    # for alpha in [0.1, 1.0, 10.0]:
+    #
+    #     if alpha == 0.1:
+    #         label = "01"
+    #     elif alpha == 1.0:
+    #         label = "1"
+    #     else:
+    #         label = "10"
+    #
+    #     print("--- alpha = " + label + "---")
+    #
+    #     with open("result/result_mmd_"+label+".csv", "w") as outfile:
+    #         outfile.write("target,{}\n".format(",".join(CITIEs)))
+    #         for SOURCE in SOURCEs:
+    #             print("* SOURCE = " + SOURCE)
+    #             outfile.write(SOURCE)
+    #             for TARGET in CITIEs:
+    #                 print("\t * TARGET = " + TARGET)
+    #                 source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24 * 30 * 6)
+    #                 mmd = MMD(source_data.shape[0], target_data.shape[0])
+    #                 result = mmd(source_data, target_data, alpha=alpha)
+    #                 result = float(result) * float(result)
+    #                 outfile.write(",{}".format(str(result)))
+    #             outfile.write("\n")
 
     '''
     再実験
