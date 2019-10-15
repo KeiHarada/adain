@@ -566,7 +566,7 @@ def experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET):
         # select train, validate, test sets
         train = []
         for i in range(len(source)):
-            train += source[:TRAIN_NUM]
+            train += source[i][:TRAIN_NUM]
 
         valid = target[TRAIN_NUM:TRAIN_NUM+VALID_NUM]
         test = target[TRAIN_NUM+VALID_NUM:TRAIN_NUM+VALID_NUM+TEST_NUM]
@@ -902,34 +902,34 @@ if __name__ == "__main__":
     Experiment1:
     仮説検証のためのone-to-oneの実験
     '''
-    # test=5stationsある都市を選択
-    # 気象データが全部Nullの都市は無視
-    CITIEs = list()
-    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-        with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:] # 1行目を無視
-            if len(infile) >= 5:
-                CITIEs.append(city)
-    CITIEs.remove("JiNan")
-    CITIEs.remove("HeYuan")
-    CITIEs.remove("JieYang")
-    CITIEs.remove("ShaoGuan")
-    CITIEs.remove("DaTong")
-    CITIEs.remove("DeZhou")
-    CITIEs.remove("BinZhou")
-    CITIEs.remove("DongYing")
-    CITIEs.remove("ChenZhou")
-
-    # make dataset
-    makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
-
-    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    for SOURCE in SOURCEs:
-        TARGETs = CITIEs.copy()
-        TARGETs.remove(SOURCE)
-        experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
+    # # test=5stationsある都市を選択
+    # # 気象データが全部Nullの都市は無視
+    # CITIEs = list()
+    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+    #     with open("database/station/station_"+city+".csv", "r") as infile:
+    #         infile = infile.readlines()[1:] # 1行目を無視
+    #         if len(infile) >= 5:
+    #             CITIEs.append(city)
+    # CITIEs.remove("JiNan")
+    # CITIEs.remove("HeYuan")
+    # CITIEs.remove("JieYang")
+    # CITIEs.remove("ShaoGuan")
+    # CITIEs.remove("DaTong")
+    # CITIEs.remove("DeZhou")
+    # CITIEs.remove("BinZhou")
+    # CITIEs.remove("DongYing")
+    # CITIEs.remove("ChenZhou")
+    #
+    # # make dataset
+    # makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
+    #
+    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    # SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    # for SOURCE in SOURCEs:
+    #     TARGETs = CITIEs.copy()
+    #     TARGETs.remove(SOURCE)
+    #     experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs)
 
     '''
     Experiment2:
@@ -968,32 +968,32 @@ if __name__ == "__main__":
     # Experiment3:
     # マルチソースで実験
     # '''
-    # # test=5stationsある都市を選択
-    # # 気象データが全部Nullの都市は無視3
-    # CITIEs = list()
-    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-    #     with open("database/station/station_"+city+".csv", "r") as infile:
-    #         infile = infile.readlines()[1:] # 1行目を無視
-    #         if len(infile) >= 5:
-    #             CITIEs.append(city)
-    # CITIEs.remove("JiNan")
-    # CITIEs.remove("HeYuan")
-    # CITIEs.remove("JieYang")
-    # CITIEs.remove("ShaoGuan")
-    # CITIEs.remove("DaTong")
-    # CITIEs.remove("DeZhou")
-    # CITIEs.remove("BinZhou")
-    # CITIEs.remove("DongYing")
-    # CITIEs.remove("ChenZhou")
-    #
-    # # make dataset
-    # makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
-    #
-    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    # TARGETs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    # for TARGET in TARGETs:
-    #     experiment3(LOOP, TRIAL, ATTRIBUTE, CITIEs, TARGET)
+    # test=5stationsある都市を選択
+    # 気象データが全部Nullの都市は無視3
+    CITIEs = list()
+    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+        with open("database/station/station_"+city+".csv", "r") as infile:
+            infile = infile.readlines()[1:] # 1行目を無視
+            if len(infile) >= 5:
+                CITIEs.append(city)
+    CITIEs.remove("JiNan")
+    CITIEs.remove("HeYuan")
+    CITIEs.remove("JieYang")
+    CITIEs.remove("ShaoGuan")
+    CITIEs.remove("DaTong")
+    CITIEs.remove("DeZhou")
+    CITIEs.remove("BinZhou")
+    CITIEs.remove("DongYing")
+    CITIEs.remove("ChenZhou")
+
+    # make dataset
+    makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 3)
+
+    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    TARGETs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    for TARGET in TARGETs:
+        experiment3(LOOP, TRIAL, ATTRIBUTE, CITIEs, TARGET)
 
     '''
     距離計算
