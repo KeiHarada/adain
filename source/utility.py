@@ -75,11 +75,11 @@ class MMD:
 
         # multi-processing
         pool = mp.Pool(self.proc)
-        XX = pool.map(self.xx, range(self.proc))
+        XX = pool.map(self.xx, range(self.n_x))
         XX = sum(XX)
-        YY = pool.map(self.yy, range(self.proc))
+        YY = pool.map(self.yy, range(self.n_y))
         YY = sum(YY)
-        XY = pool.map(self.xy, range(self.proc))
+        XY = pool.map(self.xy, range(self.n_x))
         XY = sum(XY)
 
         # # single-processing
@@ -89,68 +89,47 @@ class MMD:
         #     for j in range(self.n_x):
         #         if i == j:
         #             continue
-        #         XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.X[j], ord=2) ** 2)
+        #         XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
         # # YY
         # YY = 0
         # for i in range(self.n_y):
         #     for j in range(self.n_y):
         #         if i == j:
         #             continue
-        #         YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i], self.Y[j], ord=2) ** 2)
+        #         YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
         # # XY
         # XY = 0
         # for i in range(self.n_x):
         #     for j in range(self.n_y):
-        #         XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.Y[j], ord=2) ** 2)
-        #
+        #         XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+
         return (self.axx * XX) + (self.ayy * YY) + (self.axy * XY)
 
-    def xx(self, p):
+    def xx(self, i):
 
         subtotal = 0
-
-        # iの範囲を設定
-        ini = self.n_x * p / self.proc
-        fin = self.n_x * (p + 1) / self.proc
-
-        # 計算を実行
-        for i in range(ini, fin):
-            for j in range(self.n_x):
-                if i == j:
-                    continue
-                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.X[j], ord=2) ** 2)
+        for j in range(self.n_x):
+            if i == j:
+                continue
+            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
 
         return subtotal
 
-    def yy(self, p):
+    def yy(self, i):
 
         subtotal = 0
-
-        # iの範囲を設定
-        ini = self.n_y * p / self.proc
-        fin = self.n_y * (p + 1) / self.proc
-
-        # 計算を実行
-        for i in range(ini, fin):
-            for j in range(self.n_y):
-                if i == j:
-                    continue
-                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i], self.Y[j], ord=2) ** 2)
+        for j in range(self.n_y):
+            if i == j:
+                continue
+            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
 
         return subtotal
 
-    def xy(self, p):
+    def xy(self, i):
 
         subtotal = 0
-
-        # iの範囲を設定
-        ini = self.n_x * p / self.proc
-        fin = self.n_x * (p + 1) / self.proc
-
-        # 計算を実行
-        for i in range(ini, fin):
-            for j in range(self.n_y):
-                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.Y[j], ord=2) ** 2)
+        for j in range(self.n_y):
+            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
 
         return subtotal
 
