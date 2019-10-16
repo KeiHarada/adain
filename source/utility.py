@@ -5,6 +5,8 @@ import numpy as np
 import overpy
 import torch
 import resource
+import multiprocessing as mp
+import os
 import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
@@ -24,27 +26,6 @@ def get_memory():
                 free_memory += int(sline[1])
     return free_memory
 
-def pdist(sample_1, sample_2, eps=1e-5):
-
-    '''
-    :param sample_1: numpy
-    :param sample_2: numpy
-    :param eps: float
-    :return: numpy
-    '''
-
-    n_1, n_2 = sample_1.shape[0], sample_2.shape[0]
-
-    norm_1 = np.sum(sample_1**2, axis=1, keepdims=True)
-    norm_1 = np.tile(norm_1, (1, n_2))
-
-    norm_2 = np.sum(sample_2**2, axis=1, keepdims=True)
-    norm_2 = np.tile(norm_2.transpose(), (n_1, 1))
-
-    norm_2 = norm_1 + norm_2 - 2 * np.dot(sample_1, sample_2.transpose())
-
-    return np.sqrt(eps + np.abs(norm_2))
-
 class MMD:
     r"""The *unbiased* MMD test of :cite:`gretton2012kernel`.
 
@@ -55,16 +36,26 @@ class MMD:
     n_2: int
         The number of points in the second sample."""
 
-    def __init__(self, n_x, n_y):
-        self.n_x = n_x
-        self.n_y = n_y
+    def __init__(self, X, Y, alpha):
 
-        # The three constants used in the test.
-        self.axx = 1. / (n_x * (n_x - 1))
-        self.ayy = 1. / (n_y * (n_y - 1))
-        self.axy = - 2. / (n_x * n_y)
+        # two samples
+        self.X = X
+        self.Y = Y
+        self.n_x = len(X)
+        self.n_y = len(Y)
 
-    def __call__(self, X, Y, alpha):
+        # band with
+        self.alpah = alpha
+
+        # The three constants to calculate MMD.
+        self.axx = 1. / (self.n_x * (self.n_x - 1))
+        self.ayy = 1. / (self.n_y * (self.n_y - 1))
+        self.axy = - 2. / (self.n_x * self.n_y)
+
+        # for multiprocessing
+        self.proc = 40
+
+    def __call__(self):
 
         '''
         MMD(X, Y) is
@@ -80,29 +71,88 @@ class MMD:
             k(x, x') = \sum_{j=1}^k e^{-\alpha_j \|x - x'\|^2},
 
         for the provided ``alphas``.
-
-        Returns
-        -------
-        :class:`float`
-            The test statistic.
         '''
 
-        # XX
-        distance = pdist(sample_1=X, sample_2=X)
-        XX = np.exp(-1 * alpha * distance ** 2)
-        XX = XX.sum() - np.trace(XX)
+        # multi-processing
+        pool = mp.Pool(self.proc)
+        XX = pool.map(self.xx, range(self.proc))
+        XX = sum(XX)
+        YY = pool.map(self.yy, range(self.proc))
+        YY = sum(YY)
+        XY = pool.map(self.xy, range(self.proc))
+        XY = sum(XY)
 
-        # YY
-        distance = pdist(sample_1=Y, sample_2=Y)
-        YY = np.exp(-1 * alpha * distance ** 2)
-        YY = YY.sum() - np.trace(YY)
-
-        # XY
-        distance = pdist(sample_1=X, sample_2=Y)
-        XY = np.exp(-1 * alpha * distance ** 2)
-        XY = XY.sum()
-
+        # # single-processing
+        # # XX
+        # XX = 0
+        # for i in range(self.n_x):
+        #     for j in range(self.n_x):
+        #         if i == j:
+        #             continue
+        #         XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.X[j], ord=2) ** 2)
+        # # YY
+        # YY = 0
+        # for i in range(self.n_y):
+        #     for j in range(self.n_y):
+        #         if i == j:
+        #             continue
+        #         YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i], self.Y[j], ord=2) ** 2)
+        # # XY
+        # XY = 0
+        # for i in range(self.n_x):
+        #     for j in range(self.n_y):
+        #         XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.Y[j], ord=2) ** 2)
+        #
         return (self.axx * XX) + (self.ayy * YY) + (self.axy * XY)
+
+    def xx(self, p):
+
+        subtotal = 0
+
+        # iの範囲を設定
+        ini = self.n_x * p / self.proc
+        fin = self.n_x * (p + 1) / self.proc
+
+        # 計算を実行
+        for i in range(ini, fin):
+            for j in range(self.n_x):
+                if i == j:
+                    continue
+                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.X[j], ord=2) ** 2)
+
+        return subtotal
+
+    def yy(self, p):
+
+        subtotal = 0
+
+        # iの範囲を設定
+        ini = self.n_y * p / self.proc
+        fin = self.n_y * (p + 1) / self.proc
+
+        # 計算を実行
+        for i in range(ini, fin):
+            for j in range(self.n_y):
+                if i == j:
+                    continue
+                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i], self.Y[j], ord=2) ** 2)
+
+        return subtotal
+
+    def xy(self, p):
+
+        subtotal = 0
+
+        # iの範囲を設定
+        ini = self.n_x * p / self.proc
+        fin = self.n_x * (p + 1) / self.proc
+
+        # 計算を実行
+        for i in range(ini, fin):
+            for j in range(self.n_y):
+                subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i], self.Y[j], ord=2) ** 2)
+
+        return subtotal
 
 class MyDataset(torch.utils.data.Dataset):
 
