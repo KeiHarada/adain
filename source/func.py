@@ -936,7 +936,7 @@ def objective(trial):
     idx = 0
     for station_train_i in list(np.array_split(station_train, divide_num)):
         with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-            pickle.dump(MyDataset(makeTrainData(station_train_i)), pl)
+            pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
         idx += 1
 
     # validation data
@@ -1074,7 +1074,7 @@ def evaluate(model_state_dict, station_train, station_test):
     idx = 0
     for station_train_i in list(np.array_split(station_train, divide_num)):
         with open("tmp/test_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-            pickle.dump(MyDataset(makeTestData(station_test, station_train_i)), pl)
+            pickle.dump(MyDataset(makeTestData(station_test, list(station_train_i))), pl)
         idx += 1
     print(Color.GREEN + "OK" + Color.END)
 
