@@ -935,8 +935,11 @@ def objective(trial):
     # train data
     idx = 0
     for station_train_i in list(np.array_split(station_train, divide_num)):
-        with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-            pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
+        # with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+        #     pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
+
+        with open("tmp/test_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+            pickle.dump(MyDataset(makeTestData(station_train[:5], list(station_train_i))), pl)
         idx += 1
 
     # validation data
