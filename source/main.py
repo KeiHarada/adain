@@ -987,7 +987,7 @@ if __name__ == "__main__":
     CITIEs.remove("ChenZhou")
 
     # make dataset
-    makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 6)
+    #makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 6)
 
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]

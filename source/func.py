@@ -929,7 +929,7 @@ def objective(trial):
     logs = []
 
     # divide train dataset to save memory usage
-    divide_num = 10
+    divide_num = 20
 
     print("data loading ...", end="")
     # train data
@@ -1068,7 +1068,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # divide dataset to save memory usage
-    divide_num = 10
+    divide_num = 20
 
     print("data loading ...", end="")
     idx = 0
