@@ -928,9 +928,18 @@ def objective(trial):
     # log
     logs = []
 
-    # load data
+    # divide train dataset to save memory usage
+    divide_num = 10
+
     print("data loading ...", end="")
-    trainData = MyDataset(makeTrainData(station_train))
+    # train data
+    idx = 0
+    for station_train_i in list(np.array_split(station_train, divide_num)):
+        with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+            pickle.dump(MyDataset(makeTrainData(station_train_i)), pl)
+        idx += 1
+
+    # validation data
     validData = MyDataset(makeTestData(station_valid, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
@@ -938,46 +947,50 @@ def objective(trial):
 
         epoch_loss = list()
 
-        for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
+        for idx in range(divide_num):
 
-            print("\t|- batch loss: ", end="")
-            optimizer.zero_grad()
+            trainData = pickle.load(open("train_{}.pickle".format(str(idx).zfill(2)), "rb"))
 
-            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+            for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
-            # to GPU
-            batch_local_static = batch_local_static.to(device)
-            batch_local_seq = batch_local_seq.to(device)
-            batch_others_static = batch_others_static.to(device)
-            batch_others_seq = batch_others_seq.to(device)
-            batch_target = batch_target.to(device)
+                print("\t|- batch loss: ", end="")
+                optimizer.zero_grad()
 
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-            loss = criterion(pred, batch_target)
-            loss.backward()
-            optimizer.step()
-            batch_loss = np.sqrt(loss.item())
-            print("%.10f" % (batch_loss))
-            epoch_loss.append(batch_loss)
+                batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-        epoch_loss = np.average(epoch_loss)
-        print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
+                # to GPU
+                batch_local_static = batch_local_static.to(device)
+                batch_local_seq = batch_local_seq.to(device)
+                batch_others_static = batch_others_static.to(device)
+                batch_others_seq = batch_others_seq.to(device)
+                batch_target = batch_target.to(device)
 
-        # validate
-        print("\t\t|- validation : ", end="")
-        model.eval()
-        rmse, accuracy = validate(model, validData)
-        model.train()
-        log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
-        logs.append(log)
-        print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+                # predict
+                pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+                loss = criterion(pred, batch_target)
+                loss.backward()
+                optimizer.step()
+                batch_loss = np.sqrt(loss.item())
+                print("%.10f" % (batch_loss))
+                epoch_loss.append(batch_loss)
 
-        # early stopping
-        early_stopping(rmse, model)
-        if early_stopping.early_stop:
-            print("\t\tEarly stopping")
-            break
+            epoch_loss = np.average(epoch_loss)
+            print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
+
+            # validate
+            print("\t\t|- validation : ", end="")
+            model.eval()
+            rmse, accuracy = validate(model, validData)
+            model.train()
+            log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
+            logs.append(log)
+            print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+
+            # early stopping
+            early_stopping(rmse, model)
+            if early_stopping.early_stop:
+                print("\t\tEarly stopping")
+                break
 
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))
@@ -1054,35 +1067,46 @@ def evaluate(model_state_dict, station_train, station_test):
     result = []
     result_label = []
 
-    # load data
-    print("data loading ....", end="")
-    testData = MyDataset(makeTestData(station_test, station_train))
+    # divide dataset to save memory usage
+    divide_num = 10
+
+    print("data loading ...", end="")
+    idx = 0
+    for station_train_i in list(np.array_split(station_train, divide_num)):
+        with open("tmp/test_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+            pickle.dump(MyDataset(makeTestData(station_test, station_train_i)), pl)
+        idx += 1
     print(Color.GREEN + "OK" + Color.END)
 
     batch_size = 5000
     iteration = 0
-    for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
-        batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
+    for idx in range(divide_num):
 
-        # to GPU
-        batch_local_static = batch_local_static.to(device)
-        batch_local_seq = batch_local_seq.to(device)
-        batch_others_static = batch_others_static.to(device)
-        batch_others_seq = batch_others_seq.to(device)
+        testData = pickle.load(open("test_{}.pickle".format(str(idx).zfill(2)), "rb"))
 
-        # predict
-        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
-        pred = pred.to("cpu")
+        for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
-        # evaluate
-        pred = list(map(lambda x: x[0], pred.data.numpy()))
-        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-        result += pred
-        result_label += batch_target
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
-        iteration += len(batch_target)
-        print("\t|- iteration %d / %d" % (iteration, len(testData)))
+            # to GPU
+            batch_local_static = batch_local_static.to(device)
+            batch_local_seq = batch_local_seq.to(device)
+            batch_others_static = batch_others_static.to(device)
+            batch_others_seq = batch_others_seq.to(device)
+
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+            pred = pred.to("cpu")
+
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            result += pred
+            result_label += batch_target
+
+            iteration += len(batch_target)
+            print("\t|- iteration %d / %d" % (iteration, len(testData)))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
