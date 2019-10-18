@@ -929,17 +929,14 @@ def objective(trial):
     logs = []
 
     # divide train dataset to save memory usage
-    divide_num = 20
+    divide_num = 50
 
     print("data loading ...", end="")
     # train data
     idx = 0
     for station_train_i in list(np.array_split(station_train, divide_num)):
-        # with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-        #     pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
-
-        with open("tmp/test_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-            pickle.dump(MyDataset(makeTestData(station_train[:5], list(station_train_i))), pl)
+        with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+            pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
         idx += 1
 
     # validation data
@@ -1071,7 +1068,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # divide dataset to save memory usage
-    divide_num = 20
+    divide_num = 50
 
     print("data loading ...", end="")
     idx = 0
