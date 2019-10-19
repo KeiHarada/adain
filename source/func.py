@@ -952,7 +952,7 @@ def objective(trial):
         # train
         for idx in range(divide_num):
 
-            trainData = pickle.load(open("train_{}.pickle".format(str(idx).zfill(2)), "rb"))
+            trainData = pickle.load(open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "rb"))
 
             for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
@@ -995,7 +995,7 @@ def objective(trial):
         accuracy = list()
         model.eval()
         for idx in range(divide_num):
-            validData = pickle.load(open("valid_{}.pickle".format(str(idx).zfill(2)), "rb"))
+            validData = pickle.load(open("tmp/valid_{}.pickle".format(str(idx).zfill(2)), "rb"))
             rmse_i, accuracy_i = validate(model, validData)
             rmse.append(rmse_i)
             accuracy.append(accuracy_i)
@@ -1105,7 +1105,7 @@ def evaluate(model_state_dict, station_train, station_test):
 
     for idx in range(divide_num):
 
-        testData = pickle.load(open("test_{}.pickle".format(str(idx).zfill(2)), "rb"))
+        testData = pickle.load(open("tmp/test_{}.pickle".format(str(idx).zfill(2)), "rb"))
 
         for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
