@@ -940,7 +940,7 @@ def objective(trial):
             pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
         # validation data
         with open("tmp/valid_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
-            pickle.dump(MyDataset(makeTestData(station_valid, station_train_i)), pl)
+            pickle.dump(MyDataset(makeTestData(station_valid, list(station_train_i))), pl)
         idx += 1
     print(Color.GREEN + "OK" + Color.END)
 
