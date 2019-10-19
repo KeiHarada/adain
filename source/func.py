@@ -929,24 +929,27 @@ def objective(trial):
     logs = []
 
     # divide train dataset to save memory usage
-    divide_num = 50
+    divide_num = 20
 
+    # make dataset
     print("data loading ...", end="")
-    # train data
     idx = 0
     for station_train_i in list(np.array_split(station_train, divide_num)):
+        # train data
         with open("tmp/train_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
             pickle.dump(MyDataset(makeTrainData(list(station_train_i))), pl)
+        # validation data
+        with open("tmp/valid_{}.pickle".format(str(idx).zfill(2)), "wb") as pl:
+            pickle.dump(MyDataset(makeTestData(station_valid, station_train_i)), pl)
         idx += 1
-
-    # validation data
-    validData = MyDataset(makeTestData(station_valid, station_train))
     print(Color.GREEN + "OK" + Color.END)
 
+    # start training
     for step in range(int(epochs)):
 
         epoch_loss = list()
 
+        # train
         for idx in range(divide_num):
 
             trainData = pickle.load(open("train_{}.pickle".format(str(idx).zfill(2)), "rb"))
@@ -954,8 +957,11 @@ def objective(trial):
             for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
                 print("\t|- batch loss: ", end="")
+
+                # initialize graduation
                 optimizer.zero_grad()
 
+                # batch data
                 batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
 
                 # to GPU
@@ -967,30 +973,46 @@ def objective(trial):
 
                 # predict
                 pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq)
+
+                # calculate loss, back-propagate loss, and step optimizer
                 loss = criterion(pred, batch_target)
                 loss.backward()
                 optimizer.step()
+
+                # print a batch loss as RMSE
                 batch_loss = np.sqrt(loss.item())
                 print("%.10f" % (batch_loss))
+
+                # append batch loss to the list to calculate epoch loss
                 epoch_loss.append(batch_loss)
 
-            epoch_loss = np.average(epoch_loss)
-            print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
+        epoch_loss = np.average(epoch_loss)
+        print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
 
-            # validate
-            print("\t\t|- validation : ", end="")
-            model.eval()
-            rmse, accuracy = validate(model, validData)
-            model.train()
-            log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
-            logs.append(log)
-            print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+        # validate
+        print("\t\t|- validation : ", end="")
+        rmse = list()
+        accuracy = list()
+        model.eval()
+        for idx in range(divide_num):
+            validData = pickle.load(open("valid_{}.pickle".format(str(idx).zfill(2)), "rb"))
+            rmse_i, accuracy_i = validate(model, validData)
+            rmse.append(rmse_i)
+            accuracy.append(accuracy_i)
+        model.train()
 
-            # early stopping
-            early_stopping(rmse, model)
-            if early_stopping.early_stop:
-                print("\t\tEarly stopping")
-                break
+        # calculate validation loss
+        rmse = np.average(rmse)
+        accuracy = np.average(accuracy)
+        log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
+        logs.append(log)
+        print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+
+        # early stopping
+        early_stopping(rmse, model)
+        if early_stopping.early_stop:
+            print("\t\tEarly stopping")
+            break
 
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))
@@ -1068,7 +1090,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # divide dataset to save memory usage
-    divide_num = 50
+    divide_num = 20
 
     print("data loading ...", end="")
     idx = 0
