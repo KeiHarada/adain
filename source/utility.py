@@ -53,7 +53,7 @@ class MMD:
         self.axy = - 2. / (self.n_x * self.n_y)
 
         # for multiprocessing
-        self.proc = 40
+        self.proc = 30
 
     def __call__(self):
 
