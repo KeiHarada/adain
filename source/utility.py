@@ -74,34 +74,34 @@ class MMD:
         '''
 
         # multi-processing
-        pool = mp.Pool(self.proc)
-        XX = pool.map(self.xx, range(self.n_x))
-        XX = sum(XX)
-        YY = pool.map(self.yy, range(self.n_y))
-        YY = sum(YY)
-        XY = pool.map(self.xy, range(self.n_x))
-        XY = sum(XY)
+        # pool = mp.Pool(self.proc)
+        # XX = pool.map(self.xx, range(self.n_x))
+        # XX = sum(XX)
+        # YY = pool.map(self.yy, range(self.n_y))
+        # YY = sum(YY)
+        # XY = pool.map(self.xy, range(self.n_x))
+        # XY = sum(XY)
 
-        # # single-processing
-        # # XX
-        # XX = 0
-        # for i in range(self.n_x):
-        #     for j in range(self.n_x):
-        #         if i == j:
-        #             continue
-        #         XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
-        # # YY
-        # YY = 0
-        # for i in range(self.n_y):
-        #     for j in range(self.n_y):
-        #         if i == j:
-        #             continue
-        #         YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
-        # # XY
-        # XY = 0
-        # for i in range(self.n_x):
-        #     for j in range(self.n_y):
-        #         XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+        # single-processing
+        # XX
+        XX = 0
+        for i in range(self.n_x):
+            for j in range(self.n_x):
+                if i == j:
+                    continue
+                XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
+        # YY
+        YY = 0
+        for i in range(self.n_y):
+            for j in range(self.n_y):
+                if i == j:
+                    continue
+                YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
+        # XY
+        XY = 0
+        for i in range(self.n_x):
+            for j in range(self.n_y):
+                XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
 
         return (self.axx * XX) + (self.ayy * YY) + (self.axy * XY)
 
