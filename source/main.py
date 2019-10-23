@@ -16,6 +16,7 @@ from source.func import makeDataset_multi
 from source.func import makeDataset_mmd
 from source.utility import get_dist_angle
 from source.utility import MMD
+from source.utility import MMD_preComputed
 from source.utility import memory_limit
 from source.func import objective
 from source.func import evaluate
@@ -1050,6 +1051,13 @@ if __name__ == "__main__":
 
         print("--- alpha = " + label + "---")
 
+        print("* pre-computing is start")
+
+        for city in CITIEs:
+            mmd_pre = MMD_preComputed(city, alpha, 24 * 30 * 6)
+            mmd_pre()
+            del mmd_pre
+
         with open("result/result_mmd_"+label+".csv", "w") as outfile:
             outfile.write("target,{}\n".format(",".join(CITIEs)))
             for SOURCE in SOURCEs:
@@ -1057,8 +1065,7 @@ if __name__ == "__main__":
                 outfile.write(SOURCE)
                 for TARGET in CITIEs:
                     print("\t * TARGET = " + TARGET)
-                    source_data, target_data = makeDataset_mmd(SOURCE, TARGET, 24 * 30 * 6)
-                    mmd = MMD(source_data, target_data, alpha)
+                    mmd = MMD(SOURCE, TARGET, alpha)
                     result = mmd()
                     result = float(result) * float(result)
                     outfile.write(",{}".format(str(result)))

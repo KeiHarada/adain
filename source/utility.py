@@ -5,6 +5,7 @@ import numpy as np
 import overpy
 import torch
 import resource
+import pickle
 import multiprocessing as mp
 import os
 import torch.optim as optim
@@ -26,6 +27,105 @@ def get_memory():
                 free_memory += int(sline[1])
     return free_memory
 
+class MMD_preComputed():
+
+    def __init__(self, city, alpha, data_length=None):
+
+        '''
+        make dataset
+        '''
+
+        # station data
+        station = pd.read_csv("database/station/station_" + city + ".csv", dtype=object)
+
+        # poi data
+        poi_attribute = ["Arts & Entertainment", "College & University", "Event",
+                         "Food", "Nightlife Spot", "Outdoors & Recreation", "Professional & Other Places",
+                         "Residence", "Shop & Service", "Travel & Transport"]
+        dtype = {att: "float" for att in poi_attribute}
+        dtype["sid"] = "object"
+
+        poi = pd.read_csv("database/poi/poi_" + city + ".csv", dtype=dtype)
+        df = normalization(poi[poi_attribute])
+        poi = pd.concat([poi.drop(poi_attribute, axis=1), df], axis=1)
+
+        # road network data
+        road_attribute = ["motorway", "trunk", "others"]
+        dtype = {att: "float" for att in road_attribute}
+        dtype["sid"] = "object"
+
+        road = pd.read_csv("database/road/road_" + city + ".csv", dtype=dtype)
+        df = normalization(road[road_attribute])
+        road = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
+
+        # meteorological data
+        meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
+        dtype = {att: "float" for att in meteorology_attribute}
+        dtype["did"], dtype["time"] = "object", "object"
+
+        mete = pd.read_csv("database/meteorology/meteorology_" + city + ".csv", dtype=dtype)
+        meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
+        df = normalization(data_interpolate(mete[meteorology_attribute]))
+        mete = pd.concat([mete.drop(meteorology_attribute, axis=1), df], axis=1)
+
+        df, columns = weather_onehot(mete["weather"])
+        mete = pd.concat([mete.drop(["weather"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
+        df, columns = winddirection_onehot(mete["wind_direction"])
+        mete = pd.concat([mete.drop(["wind_direction"], axis=1), df], axis=1)
+        meteorology_attribute += columns
+
+        for sid in list(station["sid"]):
+
+            did = list(station[station["sid"] == sid]["did"])[0]
+            if data_length is None:
+                mete_tmp = mete[mete["did"] == did]
+            else:
+                mete_tmp = mete[mete["did"] == did][:data_length]
+            mete_tmp = mete_tmp.drop(["did"], axis=1).reset_index(drop=True)
+            df = pd.DataFrame({"sid": [sid] * len(mete_tmp)})
+            mete_tmp = pd.concat([df, mete_tmp], axis=1)
+
+            if sid == list(station["sid"])[0]:
+                meteorology = mete_tmp
+            else:
+                meteorology = pd.concat([meteorology, mete_tmp], axis=0, ignore_index=True)
+
+        mmd_data = pd.merge(meteorology, poi, on="sid")
+        mmd_data = pd.merge(mmd_data, road, on="sid")
+        mmd_data = mmd_data.drop(["sid", "time"], axis=1)
+        mmd_data = mmd_data.values
+
+        print("\t|- {} data is created".format(city))
+        with open("tmp/mmdData_" + city + ".pickle", "wb") as pl:
+            pickle.dump(mmd_data, pl)
+
+        self.X = mmd_data
+        self.n_x = len(mmd_data)
+        self.city = city
+        self.alpha = alpha
+        self.proc = 70
+
+    def __call__(self):
+        pool = mp.Pool(self.proc)
+        XX = pool.map(self.xx, range(self.n_x))
+        XX = sum(XX)
+
+        print("\t|- {} kernel is computed".format(self.city))
+        with open("tmp/kernelScore_" + self.city + ".pickle", "wb") as pl:
+            pickle.dump(XX, pl)
+
+    def xx(self, i):
+
+        subtotal = 0
+        for j in range(self.n_x):
+            if i == j:
+                continue
+            subtotal += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i] - self.X[j], ord=2) ** 2)
+
+        return subtotal
+
 class MMD:
     r"""The *unbiased* MMD test of :cite:`gretton2012kernel`.
 
@@ -36,16 +136,20 @@ class MMD:
     n_2: int
         The number of points in the second sample."""
 
-    def __init__(self, X, Y, alpha):
+    def __init__(self, source, target, alpha):
 
         # two samples
-        self.X = X
-        self.Y = Y
-        self.n_x = len(X)
-        self.n_y = len(Y)
+        self.X = pickle.load(open("tmp/mmdData_" + source + ".pickle", "rb"))
+        self.Y = pickle.load(open("tmp/mmdData_" + target + ".pickle", "rb"))
+        self.n_x = len(self.X)
+        self.n_y = len(self.Y)
+
+        # kernels
+        self.XX = pickle.load(open("tmp/kernelScore_" + source + ".pickle", "rb"))
+        self.YY = pickle.load(open("tmp/kernelScore_" + target + ".pickle", "rb"))
 
         # band with
-        self.alpah = alpha
+        self.alpha = alpha
 
         # The three constants to calculate MMD.
         self.axx = 1. / (self.n_x * (self.n_x - 1))
@@ -53,7 +157,7 @@ class MMD:
         self.axy = - 2. / (self.n_x * self.n_y)
 
         # for multiprocessing
-        self.proc = 30
+        self.proc = 70
 
     def __call__(self):
 
@@ -73,14 +177,21 @@ class MMD:
         for the provided ``alphas``.
         '''
 
-        # multi-processing
+        # multi-processing using pre-computed data
+        XX = self.XX
+        YY = self.YY
         pool = mp.Pool(self.proc)
-        XX = pool.map(self.xx, range(self.n_x))
-        XX = sum(XX)
-        YY = pool.map(self.yy, range(self.n_y))
-        YY = sum(YY)
         XY = pool.map(self.xy, range(self.n_x))
         XY = sum(XY)
+
+        # multi-processing
+        # pool = mp.Pool(self.proc)
+        # XX = pool.map(self.xx, range(self.n_x))
+        # XX = sum(XX)
+        # YY = pool.map(self.yy, range(self.n_y))
+        # YY = sum(YY)
+        # XY = pool.map(self.xy, range(self.n_x))
+        # XY = sum(XY)
 
         # single-processing
         # XX
@@ -89,19 +200,19 @@ class MMD:
         #     for j in range(self.n_x):
         #         if i == j:
         #             continue
-        #         XX += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
+        #         XX += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
         # # YY
         # YY = 0
         # for i in range(self.n_y):
         #     for j in range(self.n_y):
         #         if i == j:
         #             continue
-        #         YY += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
+        #         YY += np.exp(-1 * self.alpha * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
         # # XY
         # XY = 0
         # for i in range(self.n_x):
         #     for j in range(self.n_y):
-        #         XY += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+        #         XY += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
 
         return (self.axx * XX) + (self.ayy * YY) + (self.axy * XY)
 
@@ -111,7 +222,7 @@ class MMD:
         for j in range(self.n_x):
             if i == j:
                 continue
-            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
+            subtotal += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.X[j], ord=2) ** 2)
 
         return subtotal
 
@@ -121,7 +232,7 @@ class MMD:
         for j in range(self.n_y):
             if i == j:
                 continue
-            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
+            subtotal += np.exp(-1 * self.alpha * np.linalg.norm(self.Y[i]-self.Y[j], ord=2) ** 2)
 
         return subtotal
 
@@ -129,7 +240,7 @@ class MMD:
 
         subtotal = 0
         for j in range(self.n_y):
-            subtotal += np.exp(-1 * self.alpah * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+            subtotal += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
 
         return subtotal
 
