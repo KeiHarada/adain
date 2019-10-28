@@ -929,7 +929,7 @@ def objective(trial):
     logs = []
 
     # divide train dataset to save memory usage
-    divide_num = 20
+    divide_num = 5
 
     # make dataset
     print("data loading ...", end="")
@@ -1038,7 +1038,7 @@ def validate(model, validData):
     result = []
     result_label = []
 
-    batch_size = 5000
+    batch_size = 2000
 
     for batch_i in torch.utils.data.DataLoader(validData, batch_size=batch_size, shuffle=False):
 
@@ -1090,7 +1090,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # divide dataset to save memory usage
-    divide_num = 20
+    divide_num = 5
 
     print("data loading ...", end="")
     idx = 0
@@ -1100,7 +1100,7 @@ def evaluate(model_state_dict, station_train, station_test):
         idx += 1
     print(Color.GREEN + "OK" + Color.END)
 
-    batch_size = 5000
+    batch_size = 2000
     iteration = 0
 
     for idx in range(divide_num):
