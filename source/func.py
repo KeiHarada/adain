@@ -929,7 +929,7 @@ def objective(trial):
     logs = []
 
     # divide train dataset to save memory usage
-    divide_num = 5
+    divide_num = int(len(station_train) / 5)
 
     # make dataset
     print("data loading ...", end="")
@@ -1090,7 +1090,7 @@ def evaluate(model_state_dict, station_train, station_test):
     result_label = []
 
     # divide dataset to save memory usage
-    divide_num = 5
+    divide_num = int(len(station_train) / 5)
 
     print("data loading ...", end="")
     idx = 0
