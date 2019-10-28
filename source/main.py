@@ -993,10 +993,14 @@ if __name__ == "__main__":
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     # TARGETs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
-    TARGETs = ["BeiJing"]
-    CITIEs = ["BeiJing", "ChengDe", "LangFang", "TianJin", "TangShan"]
+    TARGETs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+
+    # TARGETs = ["BeiJing"]
+    # CITIEs = ["BeiJing", "ChengDe", "LangFang", "TianJin", "TangShan"]
     for TARGET in TARGETs:
-        experiment3(LOOP, TRIAL, ATTRIBUTE, CITIEs, TARGET)
+        SOURCEs = CITIEs.copy()
+        SOURCEs.remove(TARGET)
+        experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET)
 
     '''
     距離計算
