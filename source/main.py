@@ -1189,6 +1189,7 @@ if __name__ == "__main__":
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
     TARGETs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    CITIEs = ["BeiJing", "TianJin", "ShenZhen"]
     for TARGET in TARGETs[:1]:
         SOURCEs = CITIEs.copy()
         SOURCEs.remove(TARGET)
