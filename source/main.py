@@ -85,17 +85,6 @@ def experiment0(LOOP, TRIAL, ATTRIBUTE, CITY, TRAIN_RATE, VALID_RATE):
         with open(path, "wb") as pl:
             pickle.dump(model_state_dict, pl)
 
-        # save dataset
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", CITY)
-        with open(path, "wb") as pl:
-            pickle.dump(train, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", CITY)
-        with open(path, "wb") as pl:
-            pickle.dump(valid, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", CITY)
-        with open(path, "wb") as pl:
-            pickle.dump(test, pl)
-
         # save train log
         with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
             log = pickle.load(pl)
@@ -235,21 +224,6 @@ def experiment1(LOOP, TRIAL, ATTRIBUTE, SOURCE, TARGETs):
         path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
         with open(path, "wb") as pl:
             pickle.dump(model_state_dict, pl)
-
-        # save dataset
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", SOURCE)
-        with open(path, "wb") as pl:
-            pickle.dump(train, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", SOURCE)
-        with open(path, "wb") as pl:
-            pickle.dump(valid, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", SOURCE)
-        with open(path, "wb") as pl:
-            pickle.dump(test_source, pl)
-        for i in range(len(test_target)):
-            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGETs[i])
-            with open(path, "wb") as pl:
-                pickle.dump(test_target[i], pl)
 
         # save train log
         with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
@@ -414,18 +388,6 @@ def experiment2(TRIAL, ATTRIBUTE, SOURCE, TARGETs, VALID_RATE):
     path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", SOURCE)
     with open(path, "wb") as pl:
         pickle.dump(model_state_dict, pl)
-
-    # save dataset
-    path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", SOURCE)
-    with open(path, "wb") as pl:
-        pickle.dump(train, pl)
-    path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", SOURCE)
-    with open(path, "wb") as pl:
-        pickle.dump(valid, pl)
-    for i in range(len(test_target)):
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGETs[i])
-        with open(path, "wb") as pl:
-            pickle.dump(test_target[i], pl)
 
     # save train log
     with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
@@ -595,17 +557,6 @@ def experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET):
         with open(path, "wb") as pl:
             pickle.dump(model_state_dict, pl)
 
-        # save dataset
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", TARGET)
-        with open(path, "wb") as pl:
-            pickle.dump(train, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", TARGET)
-        with open(path, "wb") as pl:
-            pickle.dump(valid, pl)
-        path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGET)
-        with open(path, "wb") as pl:
-            pickle.dump(test, pl)
-
         # save train log
         with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
             log = pickle.load(pl)
@@ -751,17 +702,6 @@ def experiment4(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET):
             path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "model", TARGET)
             with open(path, "wb") as pl:
                 pickle.dump(model_state_dict, pl)
-
-            # save dataset
-            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "train", TARGET)
-            with open(path, "wb") as pl:
-                pickle.dump(train, pl)
-            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "valid", TARGET)
-            with open(path, "wb") as pl:
-                pickle.dump(valid, pl)
-            path = "model/{}_{}_{}_{}.pickle".format(ATTRIBUTE, str(loop).zfill(2), "test", TARGET)
-            with open(path, "wb") as pl:
-                pickle.dump(test, pl)
 
             # save train log
             with open("tmp/" + str(study.best_trial.number).zfill(4) + "_log.pickle", "rb") as pl:
