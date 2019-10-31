@@ -769,7 +769,6 @@ def makeTrainData(station_train, divide, offset):
         '''
         make dataset
         '''
-        print(T[0], "--", T[-1])
         for t in list(T):
 
             others_seq = list()
@@ -1068,8 +1067,6 @@ def objective(trial):
 
                 # batch data
                 batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
-
-                print(batch_others_static.size())
 
                 # to GPU
                 batch_local_static = batch_local_static.to(device)
