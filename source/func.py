@@ -6,6 +6,7 @@ sys.path.append("/home")
 import pickle
 import _pickle
 import torch
+import random
 import numpy as np
 import pandas as pd
 from torch import nn
@@ -1043,11 +1044,8 @@ def objective(trial):
     # log
     logs = []
 
-    # the number to divide dataset
+    # the number to divide the dataset
     divide = 20
-
-    # validation dataset
-    makeValidData(station_valid, station_train, divide=divide)
 
     # start training
     for step in range(int(epochs)):
@@ -1095,11 +1093,13 @@ def objective(trial):
 
         # validate
         print("\t\t|- validation : ", end="")
+        station_valid_tmp = station_valid.copy()
+        random.shuffle(station_valid_tmp)
         rmse = list()
         accuracy = list()
         model.eval()
         for idx in range(divide):
-            validData = pickle.load(open("tmp/valid_{}.pickle".format(str(idx).zfill(3)), "rb"))
+            validData = MyDataset(makeTestData(station_valid_tmp[:1], station_train, divide=divide, offset=idx))
             rmse_i, accuracy_i = validate(model, validData)
             rmse.append(rmse_i)
             accuracy.append(accuracy_i)
