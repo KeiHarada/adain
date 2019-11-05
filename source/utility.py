@@ -46,8 +46,8 @@ class MMD_preComputed():
         dtype["sid"] = "object"
 
         poi = pd.read_csv("database/poi/poi_" + city + ".csv", dtype=dtype)
-        df = normalization(poi[poi_attribute])
-        poi = pd.concat([poi.drop(poi_attribute, axis=1), df], axis=1)
+        # df = normalization(poi[poi_attribute])
+        # poi = pd.concat([poi.drop(poi_attribute, axis=1), df], axis=1)
 
         # road network data
         road_attribute = ["motorway", "trunk", "others"]
@@ -55,8 +55,8 @@ class MMD_preComputed():
         dtype["sid"] = "object"
 
         road = pd.read_csv("database/road/road_" + city + ".csv", dtype=dtype)
-        df = normalization(road[road_attribute])
-        road = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
+        # df = normalization(road[road_attribute])
+        # road = pd.concat([road.drop(road_attribute, axis=1), df], axis=1)
 
         # meteorological data
         meteorology_attribute = ["weather", "temperature", "pressure", "humidity", "wind_speed", "wind_direction"]
@@ -65,7 +65,8 @@ class MMD_preComputed():
 
         mete = pd.read_csv("database/meteorology/meteorology_" + city + ".csv", dtype=dtype)
         meteorology_attribute = ["temperature", "pressure", "humidity", "wind_speed"]
-        df = normalization(data_interpolate(mete[meteorology_attribute]))
+        df = data_interpolate(mete[meteorology_attribute])
+        #df = normalization(data_interpolate(mete[meteorology_attribute]))
         mete = pd.concat([mete.drop(meteorology_attribute, axis=1), df], axis=1)
 
         df, columns = weather_onehot(mete["weather"])
@@ -105,22 +106,22 @@ class MMD_preComputed():
         self.n_x = len(mmd_data)
         self.city = city
         self.alpha = alpha
-        self.proc = 70
+        self.proc = 36
 
     def __call__(self):
 
         # single-processing
-        XX = 0
-        for i in range(self.n_x):
-            for j in range(self.n_x):
-                if i == j:
-                    continue
-                XX += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i] - self.X[j], ord=2) ** 2)
+        # XX = 0
+        # for i in range(self.n_x):
+        #     for j in range(self.n_x):
+        #         if i == j:
+        #             continue
+        #         XX += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i] - self.X[j], ord=2) ** 2)
 
-        # # multi-processing
-        # pool = mp.Pool(self.proc)
-        # XX = pool.map(self.xx, range(self.n_x))
-        # XX = sum(XX)
+        # multi-processing
+        pool = mp.Pool(self.proc)
+        XX = pool.map(self.xx, range(self.n_x))
+        XX = sum(XX)
 
         print("\t|- {} kernel is computed".format(self.city))
         with open("tmp/kernelScore_" + self.city + ".pickle", "wb") as pl:
@@ -188,19 +189,19 @@ class MMD:
         '''
 
         # multi-processing using pre-computed data
-        # XX = self.XX
-        # YY = self.YY
-        # pool = mp.Pool(self.proc)
-        # XY = pool.map(self.xy, range(self.n_x))
-        # XY = sum(XY)
-
-        # single-processing using pre-computed data
         XX = self.XX
         YY = self.YY
-        XY = 0
-        for i in range(self.n_x):
-            for j in range(self.n_y):
-                XY += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+        pool = mp.Pool(self.proc)
+        XY = pool.map(self.xy, range(self.n_x))
+        XY = sum(XY)
+
+        # single-processing using pre-computed data
+        # XX = self.XX
+        # YY = self.YY
+        # XY = 0
+        # for i in range(self.n_x):
+        #     for j in range(self.n_y):
+        #         XY += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
 
 
         # multi-processing

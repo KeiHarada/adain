@@ -1260,7 +1260,7 @@ if __name__ == "__main__":
 
     # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
     # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShiJiaZhuang", "ShenZhen", "GuangZhou", "CangZhou"]
+    SOURCEs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
     for alpha in [1.0]:
 
         if alpha == 0.1:
@@ -1281,15 +1281,41 @@ if __name__ == "__main__":
 
         with open("result/result_mmd_"+label+".csv", "w") as outfile:
             outfile.write("target,{}\n".format(",".join(CITIEs)))
-            for SOURCE in SOURCEs:
-                print("* SOURCE = " + SOURCE)
+
+        sourceDict = dict()
+        for SOURCE in SOURCEs:
+            sourceDict[SOURCE] = dict(zip(SOURCEs, [0, 0, 0, 0]))
+
+        for SOURCE in SOURCEs:
+
+            print("* SOURCE = " + SOURCE)
+            with open("result/result_mmd_" + label + ".csv", "a") as outfile:
                 outfile.write(SOURCE)
-                for TARGET in CITIEs:
-                    print("\t * TARGET = " + TARGET)
+
+            for TARGET in CITIEs:
+                print("\t * TARGET = " + TARGET)
+
+                if TARGET == SOURCE:
+                    result = 0.0
+
+                elif TARGET in SOURCEs:
+                    if sourceDict[SOURCE][TARGET] != 0:
+                        result = sourceDict[SOURCE][TARGET]
+                    else:
+                        mmd = MMD(SOURCE, TARGET, alpha)
+                        result = mmd()
+                        result = float(result) * float(result)
+                        sourceDict[SOURCE][TARGET] = result
+                        sourceDict[TARGET][SOURCE] = result
+                else:
                     mmd = MMD(SOURCE, TARGET, alpha)
                     result = mmd()
                     result = float(result) * float(result)
+
+                with open("result/result_mmd_" + label + ".csv", "a") as outfile:
                     outfile.write(",{}".format(str(result)))
+
+            with open("result/result_mmd_" + label + ".csv", "a") as outfile:
                 outfile.write("\n")
 
     '''
