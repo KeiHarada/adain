@@ -108,9 +108,19 @@ class MMD_preComputed():
         self.proc = 70
 
     def __call__(self):
-        pool = mp.Pool(self.proc)
-        XX = pool.map(self.xx, range(self.n_x))
-        XX = sum(XX)
+
+        # single-processing
+        XX = 0
+        for i in range(self.n_x):
+            for j in range(self.n_x):
+                if i == j:
+                    continue
+                XX += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i] - self.X[j], ord=2) ** 2)
+
+        # # multi-processing
+        # pool = mp.Pool(self.proc)
+        # XX = pool.map(self.xx, range(self.n_x))
+        # XX = sum(XX)
 
         print("\t|- {} kernel is computed".format(self.city))
         with open("tmp/kernelScore_" + self.city + ".pickle", "wb") as pl:
@@ -178,11 +188,20 @@ class MMD:
         '''
 
         # multi-processing using pre-computed data
+        # XX = self.XX
+        # YY = self.YY
+        # pool = mp.Pool(self.proc)
+        # XY = pool.map(self.xy, range(self.n_x))
+        # XY = sum(XY)
+
+        # single-processing using pre-computed data
         XX = self.XX
         YY = self.YY
-        pool = mp.Pool(self.proc)
-        XY = pool.map(self.xy, range(self.n_x))
-        XY = sum(XY)
+        XY = 0
+        for i in range(self.n_x):
+            for j in range(self.n_y):
+                XY += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
+
 
         # multi-processing
         # pool = mp.Pool(self.proc)
