@@ -14,6 +14,8 @@ import pandas as pd
 from source.func import makeDataset_single
 from source.func import makeDataset_multi
 from source.func import makeDataset_mmd
+from source.func import pre_makeTrainData
+from source.func import pre_makeTestData
 from source.utility import get_dist_angle
 from source.utility import MMD
 from source.utility import MMD_preComputed
@@ -768,121 +770,6 @@ def experiment4(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET):
             result.write("{},{}\n".format(str(i).zfill(2), ",".join(accuracy_loop[i])))
         result.write("average,{}\n".format(",".join(accuracy_avg)))
 
-
-def analysis(source, targets):
-    import pandas as pd
-    from sklearn.metrics import mean_squared_error
-    from source.utility import calc_correct
-    from source.utility import data_interpolate
-    import matplotlib.pyplot as plt
-
-    x = [0, 51, 101, 151, 201, 301, 501, 1001]
-
-    aqi_attribute = ["pm25", "pm10", "no2", "co", "o3", "so2"]
-    model_attribute = "pm25"
-    dtype = {att: "float" for att in aqi_attribute}
-    dtype["sid"], dtype["time"] = "object", "object"
-
-    print("////// "+source+" //////")
-    aqi_source = pd.read_csv("database/aqi/aqi_" + source + ".csv", dtype=dtype)
-    df = data_interpolate(aqi_source[[model_attribute]])
-    aqi_source = pd.concat([aqi_source.drop(aqi_attribute, axis=1), df], axis=1)
-    # print("# of stations = {}".format(len(set(aqi_source["sid"]))))
-    tmp = list()
-    for i in range(len(x)-1):
-        aqi = aqi_source[aqi_source[model_attribute] >= float(x[i])]
-        aqi = aqi[aqi[model_attribute] < float(x[i+1])]
-        tmp.append(len(aqi))
-    # print(tmp)
-    tmp = list(map(lambda a: a/sum(tmp), tmp))
-    # print(tmp)
-    # print(aqi_source.describe())
-    #pd.cut(aqi_source[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-    #plt.savefig("tmp/"+SOURCE+".pdf")
-
-    aqi = aqi_source[model_attribute].values
-    mean = np.mean(aqi)
-    print("////// "+source+" //////")
-
-    rmse_s = list()
-    accuracy_s = list()
-
-    for target in targets:
-
-        rmse_t = list()
-        accuracy_t = list()
-
-        print("////// "+target+" //////")
-        aqi_target = pd.read_csv("database/aqi/aqi_" + target + ".csv", dtype=dtype)
-        df = data_interpolate(aqi_target[[model_attribute]])
-        aqi_target = pd.concat([aqi_target.drop(aqi_attribute, axis=1), df], axis=1)
-        # print("# of stations = {}".format(len(set(aqi_target["sid"]))))
-        tmp = list()
-        for i in range(len(x) - 1):
-            aqi = aqi_target[aqi_target[model_attribute] >= float(x[i])]
-            aqi = aqi[aqi[model_attribute] < float(x[i + 1])]
-            tmp.append(len(aqi))
-        # print(tmp)
-        tmp = list(map(lambda a: a / sum(tmp), tmp))
-        # print(tmp)
-        # print(aqi_target.describe())
-        # pd.cut(aqi_target[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-        # plt.savefig("tmp/" + target + ".pdf")
-        # print("----------------------")
-        for i in range(5):
-
-            # train
-            train = pickle.load(open("model/"+source + "2" + target + "_" + model_attribute + "_"
-                                     +str(i).zfill(2)+"_trainset.pickle", "rb"))
-            # test: source
-            test_s = pickle.load(open("model/"+source+"2"+target+"_"+model_attribute+"_"
-                                     +str(i).zfill(2)+"_testset_source.pickle", "rb"))
-            # test: target
-            test_t = pickle.load(open("dataset/station_"+target+".pickle", "rb"))
-            random.shuffle(test_t)
-            test_t = test_t[:5]
-
-            # aqi = aqi_source[aqi_source["sid"].isin(train)]
-            # aqi = aqi[model_attribute].values
-            # seikai = np.full(len(aqi), mean)
-            # print(np.sqrt(mean_squared_error(aqi, seikai)))
-            # print(calc_correct(aqi, seikai) / len(aqi))
-            # print(train)
-            # print(aqi.describe())
-            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            aqi = aqi_source[aqi_source["sid"].isin(test_s)]
-            aqi = aqi[model_attribute].values
-            seikai = np.full(len(aqi), mean)
-            rmse_s.append(np.sqrt(mean_squared_error(aqi, seikai)))
-            accuracy_s.append(calc_correct(aqi, seikai) / len(aqi))
-            print(np.sqrt(mean_squared_error(aqi, seikai)))
-            print(calc_correct(aqi, seikai) / len(aqi))
-            print("")
-            # print(test_s)
-            # print(aqi.describe())
-            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            aqi = aqi_target[aqi_target["sid"].isin(test_t)]
-            aqi = aqi[model_attribute].values
-            seikai = np.full(len(aqi), mean)
-            rmse_t.append(np.sqrt(mean_squared_error(aqi, seikai)))
-            accuracy_t.append(calc_correct(aqi, seikai) / len(aqi))
-            print(np.sqrt(mean_squared_error(aqi, seikai)))
-            print(calc_correct(aqi, seikai) / len(aqi))
-            # print(test_t)
-            # print(aqi.describe())
-            # pd.cut(aqi[model_attribute], x, right=False).value_counts().sort_index().plot.bar(color='gray')
-
-            plt.show()
-            print("----------------------")
-        print(np.mean(np.array(rmse_s)))
-        print(np.mean(np.array(accuracy_s)))
-        print("")
-        print(np.mean(np.array(rmse_t)))
-        print(np.mean(np.array(accuracy_t)))
-        print("////// "+target+" //////")
-
 def reEvaluate(LOOP, ATTRIBUTE, SOURCE, TARGETs):
 
     # to evaluate
@@ -1071,34 +958,34 @@ if __name__ == "__main__":
     Experiment3:
     マルチソースで実験 (全部)
     '''
-    # # test=5stationsある都市を選択
-    # # 気象データが全部Nullの都市は無視3
-    # CITIEs = list()
-    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-    #     with open("database/station/station_"+city+".csv", "r") as infile:
-    #         infile = infile.readlines()[1:] # 1行目を無視
-    #         if len(infile) >= 5:
-    #             CITIEs.append(city)
-    # CITIEs.remove("JiNan")
-    # CITIEs.remove("HeYuan")
-    # CITIEs.remove("JieYang")
-    # CITIEs.remove("ShaoGuan")
-    # CITIEs.remove("DaTong")
-    # CITIEs.remove("DeZhou")
-    # CITIEs.remove("BinZhou")
-    # CITIEs.remove("DongYing")
-    # CITIEs.remove("ChenZhou")
-    #
-    # # make dataset
-    # #makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 6)
-    #
-    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    # TARGETs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
-    # for TARGET in TARGETs:
-    #     SOURCEs = CITIEs.copy()
-    #     SOURCEs.remove(TARGET)
-    #     experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET)
+    # test=5stationsある都市を選択
+    # 気象データが全部Nullの都市は無視3
+    CITIEs = list()
+    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+        with open("database/station/station_"+city+".csv", "r") as infile:
+            infile = infile.readlines()[1:] # 1行目を無視
+            if len(infile) >= 5:
+                CITIEs.append(city)
+    CITIEs.remove("JiNan")
+    CITIEs.remove("HeYuan")
+    CITIEs.remove("JieYang")
+    CITIEs.remove("ShaoGuan")
+    CITIEs.remove("DaTong")
+    CITIEs.remove("DeZhou")
+    CITIEs.remove("BinZhou")
+    CITIEs.remove("DongYing")
+    CITIEs.remove("ChenZhou")
+
+    # make dataset
+    #makeDataset_multi(CITIEs, ATTRIBUTE, LSTM_DATA_WIDTH, 24 * 30 * 6)
+
+    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    TARGETs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    for TARGET in TARGETs:
+        SOURCEs = CITIEs.copy()
+        SOURCEs.remove(TARGET)
+        experiment3(LOOP, TRIAL, ATTRIBUTE, SOURCEs, TARGET)
 
     '''
     Experiment4:
@@ -1239,84 +1126,84 @@ if __name__ == "__main__":
     '''
     MMD計算
     '''
-    # test=5stationsある都市を選択
-    # 気象データが全部Nullの都市は無視
-    #memory_limit()
-    CITIEs = list()
-    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-        with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:] # 1行目を無視
-            if len(infile) >= 5:
-                CITIEs.append(city)
-    CITIEs.remove("JiNan")
-    CITIEs.remove("HeYuan")
-    CITIEs.remove("JieYang")
-    CITIEs.remove("ShaoGuan")
-    CITIEs.remove("DaTong")
-    CITIEs.remove("DeZhou")
-    CITIEs.remove("BinZhou")
-    CITIEs.remove("DongYing")
-    CITIEs.remove("ChenZhou")
-
-    # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
-    # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
-    SOURCEs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
-    for alpha in [1.0]:
-
-        if alpha == 0.1:
-            label = "01"
-        elif alpha == 1.0:
-            label = "1"
-        else:
-            label = "10"
-
-        print("--- alpha = " + label + "---")
-
-        print("* pre-computing is start")
-
-        for city in CITIEs:
-            mmd_pre = MMD_preComputed(city, alpha, 24 * 30 * 6)
-            mmd_pre()
-            del mmd_pre
-
-        with open("result/result_mmd_"+label+".csv", "w") as outfile:
-            outfile.write("target,{}\n".format(",".join(CITIEs)))
-
-        sourceDict = dict()
-        for SOURCE in SOURCEs:
-            sourceDict[SOURCE] = dict(zip(SOURCEs, [0, 0, 0, 0]))
-
-        for SOURCE in SOURCEs:
-
-            print("* SOURCE = " + SOURCE)
-            with open("result/result_mmd_" + label + ".csv", "a") as outfile:
-                outfile.write(SOURCE)
-
-            for TARGET in CITIEs:
-                print("\t * TARGET = " + TARGET)
-
-                if TARGET == SOURCE:
-                    result = 0.0
-
-                elif TARGET in SOURCEs:
-                    if sourceDict[SOURCE][TARGET] != 0:
-                        result = sourceDict[SOURCE][TARGET]
-                    else:
-                        mmd = MMD(SOURCE, TARGET, alpha)
-                        result = mmd()
-                        result = float(result) * float(result)
-                        sourceDict[SOURCE][TARGET] = result
-                        sourceDict[TARGET][SOURCE] = result
-                else:
-                    mmd = MMD(SOURCE, TARGET, alpha)
-                    result = mmd()
-                    result = float(result) * float(result)
-
-                with open("result/result_mmd_" + label + ".csv", "a") as outfile:
-                    outfile.write(",{}".format(str(result)))
-
-            with open("result/result_mmd_" + label + ".csv", "a") as outfile:
-                outfile.write("\n")
+    # # test=5stationsある都市を選択
+    # # 気象データが全部Nullの都市は無視
+    # #memory_limit()
+    # CITIEs = list()
+    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+    #     with open("database/station/station_"+city+".csv", "r") as infile:
+    #         infile = infile.readlines()[1:] # 1行目を無視
+    #         if len(infile) >= 5:
+    #             CITIEs.append(city)
+    # CITIEs.remove("JiNan")
+    # CITIEs.remove("HeYuan")
+    # CITIEs.remove("JieYang")
+    # CITIEs.remove("ShaoGuan")
+    # CITIEs.remove("DaTong")
+    # CITIEs.remove("DeZhou")
+    # CITIEs.remove("BinZhou")
+    # CITIEs.remove("DongYing")
+    # CITIEs.remove("ChenZhou")
+    #
+    # # Cluster 1: BeiJing[1], TianJin[1.5], ShiJiaZhuang[2]
+    # # Cluster 2: ShenZhen[1], GuangZhou[1], ChaoZhou[3]
+    # SOURCEs = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    # for alpha in [1.0]:
+    #
+    #     if alpha == 0.1:
+    #         label = "01"
+    #     elif alpha == 1.0:
+    #         label = "1"
+    #     else:
+    #         label = "10"
+    #
+    #     print("--- alpha = " + label + "---")
+    #
+    #     print("* pre-computing is start")
+    #
+    #     for city in CITIEs:
+    #         mmd_pre = MMD_preComputed(city, alpha, 24 * 30 * 6)
+    #         mmd_pre()
+    #         del mmd_pre
+    #
+    #     with open("result/result_mmd_"+label+".csv", "w") as outfile:
+    #         outfile.write("target,{}\n".format(",".join(CITIEs)))
+    #
+    #     sourceDict = dict()
+    #     for SOURCE in SOURCEs:
+    #         sourceDict[SOURCE] = dict(zip(SOURCEs, [0, 0, 0, 0]))
+    #
+    #     for SOURCE in SOURCEs:
+    #
+    #         print("* SOURCE = " + SOURCE)
+    #         with open("result/result_mmd_" + label + ".csv", "a") as outfile:
+    #             outfile.write(SOURCE)
+    #
+    #         for TARGET in CITIEs:
+    #             print("\t * TARGET = " + TARGET)
+    #
+    #             if TARGET == SOURCE:
+    #                 result = 0.0
+    #
+    #             elif TARGET in SOURCEs:
+    #                 if sourceDict[SOURCE][TARGET] != 0:
+    #                     result = sourceDict[SOURCE][TARGET]
+    #                 else:
+    #                     mmd = MMD(SOURCE, TARGET, alpha)
+    #                     result = mmd()
+    #                     result = float(result) * float(result)
+    #                     sourceDict[SOURCE][TARGET] = result
+    #                     sourceDict[TARGET][SOURCE] = result
+    #             else:
+    #                 mmd = MMD(SOURCE, TARGET, alpha)
+    #                 result = mmd()
+    #                 result = float(result) * float(result)
+    #
+    #             with open("result/result_mmd_" + label + ".csv", "a") as outfile:
+    #                 outfile.write(",{}".format(str(result)))
+    #
+    #         with open("result/result_mmd_" + label + ".csv", "a") as outfile:
+    #             outfile.write("\n")
 
     '''
     再実験
