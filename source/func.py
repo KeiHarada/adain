@@ -7,6 +7,7 @@ import pickle
 import _pickle
 import torch
 import random
+import math
 import bz2
 import numpy as np
 import pandas as pd
@@ -41,7 +42,7 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
     :return:
     '''
 
-    print("makeDataset ... ", end="")
+    print("load data from the DB ... ", end="")
 
     '''
     station data
@@ -138,6 +139,9 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
             aqi_raw_label = pd.concat([aqi_raw_label, station_label], ignore_index=True)
             aqi_raw_feature = pd.concat([aqi_raw_feature, station_feature], ignore_index=True)
 
+    print(Color.GREEN + "OK" + Color.END)
+    print("make data ... ", end="")
+
     '''
     make dataset
     '''
@@ -213,14 +217,14 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
             labelData[sid].append([aqi_data1[t]])
 
     # saving
-    with open("datatmp/inputDim.pickle", "wb") as fp:
+    with open("datatmp/inputDim.pkl", "wb") as fp:
         dc = {"local_static": len(poi_attribute)+len(road_attribute),
               "local_seq": len(meteorology_attribute),
               "others_static": len(poi_attribute)+len(road_attribute) + 2, # + distance and angle
               "others_seq": len(meteorology_attribute) + 1} # + aqi
         pickle.dump(dc, fp)
 
-    with open("datatmp/stationData.pk;", "wb") as fp:
+    with open("datatmp/stationData.pkl", "wb") as fp:
         pickle.dump(station_raw, fp)
 
     with open("datatmp/staticData.pkl", "wb") as fp:
@@ -237,7 +241,7 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeTrainData(savePath, station_train, divide):
+def makeTrainData(savePath, station_train):
 
     '''
     :param station_train): a list of station ids
@@ -256,8 +260,17 @@ def makeTrainData(savePath, station_train, divide):
     labelData_t = target_t
     '''
 
+    trainNum = math.floor(len(station_train)*0.9)
+
     tdx, vdx = 0, 0
     for station_local in station_train:
+
+        # output
+        out_local_static = list()
+        out_local_seq = list()
+        out_others_static = list()
+        out_others_seq = list()
+        out_target = list()
 
         station_others = station_train.copy()
         station_others.remove(station_local)
@@ -318,49 +331,37 @@ def makeTrainData(savePath, station_train, divide):
         target = targetData[station_local]
 
         '''
-        make datatmp
+        make dataset
         '''
-        # time-series
-        T = list(np.array_split(list(range(len(targetData[station_train[0]]))), divide))
-        for T_i in T:
+        for t in range(len(target)):
 
-            # output
-            out_local_static = list()
-            out_local_seq = list()
-            out_others_static = list()
-            out_others_seq = list()
-            out_target = list()
+            others_seq = list()
+            for sid in station_others:
+                others_seq.append(seqData_others[sid][t])
 
-            for t in list(T_i):
+            out_local_static.append(local_static)
+            out_local_seq.append(local_seq[t])
+            out_others_static.append(others_static)
+            out_others_seq.append(others_seq)
+            out_target.append(target[t])
 
-                others_seq = list()
-                for sid in station_others:
-                    others_seq.append(seqData_others[sid][t])
+        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
 
-                out_local_static.append(local_static)
-                out_local_seq.append(local_seq[t])
-                out_others_static.append(others_static)
-                out_others_seq.append(others_seq)
-                out_target.append(target[t])
-
-            out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-
-            if tdx == divide-1:
-                fout = bz2.BZ2File("{}valid_{}.pkl.bz2".format(savePath, str(vdx).zfill(3)), 'wb', compresslevel=9)
-            else:
-                fout = bz2.BZ2File("{}train_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9)
-            try:
-                fout.write(pickle.dump(out_set))
-            finally:
-                fout.close()
-
-            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
-
+        if tdx > trainNum-1:
+            with bz2.BZ2File("{}/valid_{}.pkl.bz2".format(savePath, str(vdx).zfill(3)), 'wb', compresslevel=9) as fp:
+                fp.write(pickle.dumps(out_set))
+            vdx += 1
+        else:
+            with bz2.BZ2File("{}/train_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
+                fp.write(pickle.dumps(out_set))
             tdx += 1
-        vdx += 1
 
+        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
 
-def makeTestData(savePath, station_test, station_train, divide):
+    with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
+        pickle.dump({"train": tdx, "valid": vdx}, fp)
+
+def makeTestData(savePath, station_test, station_train):
     '''
     :param station_train): a list of station ids
     :return: featureData, labelData
@@ -381,227 +382,6 @@ def makeTestData(savePath, station_test, station_train, divide):
     tdx = 0
     for station_local in station_test:
 
-        for station_removed in station_train:
-
-            station_others = station_train.copy()
-            station_others.remove(station_removed)
-            '''
-            calculate distance and angle of other stations from local stations
-            '''
-            # lat, lon of local station
-            lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
-            lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
-
-            # distance and angle
-            distance = list()
-            angle = list()
-            for sid in station_others:
-                lat = float(stationData[stationData["sid"] == sid]["lat"])
-                lon = float(stationData[stationData["sid"] == sid]["lon"])
-                result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-                distance.append(result["distance"])
-                angle.append(result["azimuth1"])
-
-            # normalization
-            if len(distance) == 1:
-                distance = [1.0]
-                angle = [1.0]
-            else:
-                maximum, minimum = max(distance), min(distance)
-                distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-                maximum, minimum = max(angle), min(angle)
-                angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
-
-            # add
-            others_static = list()
-            idx = 0
-            for sid in station_others:
-                others_static.append(staticData[sid] + [distance[idx], angle[idx]])
-                idx += 1
-
-            '''
-            concut meteorological data with aqi data of seqData of others
-            '''
-            seqData_others = dict()
-            for sid in station_others:
-                m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
-                a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
-                for i in range(len(m)):
-                    for j in range(len(m[i])):
-                        m[i][j] += a[i][j]
-                seqData_others[sid] = m
-
-            '''
-            local data and target data
-            '''
-            local_static = staticData[station_local]
-            local_seq = meteorologyData[station_local]
-            target = targetData[station_local]
-
-            '''
-            make datatmp
-            '''
-            T = list(np.array_split(list(range(len(targetData[station_train[0]]))), divide))
-            for T_i in T:
-
-                # output
-                out_local_static = list()
-                out_local_seq = list()
-                out_others_static = list()
-                out_others_seq = list()
-                out_target = list()
-
-                for t in list(T_i):
-
-                    others_seq = list()
-                    for sid in station_others:
-                        others_seq.append(seqData_others[sid][t])
-
-                    out_local_static.append(local_static)
-                    out_local_seq.append(local_seq[t])
-                    out_others_static.append(others_static)
-                    out_others_seq.append(others_seq)
-                    out_target.append(target[t])
-
-                out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-
-                fout = bz2.BZ2File("tmp/{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9)
-                try:
-                    fout.write(pickle.dump(out_set))
-                finally:
-                    fout.close()
-
-                del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
-                tdx += 1
-
-def _makeTrainData(station_train, divide, offset):
-
-    '''
-    :param station_train): a list of station ids
-    :return: featureData, labelData
-    '''
-
-    # raw data
-    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
-    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
-    meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
-    aqiData = pickle.load(open("datatmp/aqiData.pickle", "rb"))
-    targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
-
-    # time-series
-    T = list(np.array_split(list(range(len(targetData[station_train[0]]))), divide))[offset]
-
-    # output
-    out_local_static = list()
-    out_local_seq = list()
-    out_others_static = list()
-    out_others_seq = list()
-    out_target = list()
-
-    '''
-    featureData_t = (local_static, local_seq, others_static, others_seq)_t
-    labelData_t = target_t
-    '''
-    for station_local in station_train:
-
-        station_others = station_train.copy()
-        station_others.remove(station_local)
-
-        '''
-        calculate distance and angle of other stations from local stations
-        '''
-        # lat, lon of local station
-        lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
-        lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
-
-        # distance and angle
-        distance = list()
-        angle = list()
-        for sid in station_others:
-            lat = float(stationData[stationData["sid"] == sid]["lat"])
-            lon = float(stationData[stationData["sid"] == sid]["lon"])
-            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-            distance.append(result["distance"])
-            angle.append(result["azimuth1"])
-
-        # normalization
-        if len(distance) == 1:
-            distance = [1.0]
-            angle = [1.0]
-        else:
-            maximum = max(distance)
-            minimum = min(distance)
-            distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-            maximum = max(angle)
-            minimum = min(angle)
-            angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
-
-        # add
-        others_static = list()
-        idx = 0
-        for sid in station_others:
-            others_static.append(staticData[sid] + [distance[idx], angle[idx]])
-            idx += 1
-
-        '''
-        concut meteorological data with aqi data of seqData of others
-        '''
-        seqData_others = dict()
-        for sid in station_others:
-            m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
-            a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
-            for i in range(len(m)):
-                for j in range(len(m[i])):
-                    m[i][j] += a[i][j]
-            seqData_others[sid] = m
-
-        '''
-        local data and target data
-        '''
-        local_static = staticData[station_local]
-        local_seq = meteorologyData[station_local]
-        target = targetData[station_local]
-
-        '''
-        make datatmp
-        '''
-        for t in list(T):
-
-            others_seq = list()
-            for sid in station_others:
-                others_seq.append(seqData_others[sid][t])
-
-            out_local_static.append(local_static)
-            out_local_seq.append(local_seq[t])
-            out_others_static.append(others_static)
-            out_others_seq.append(others_seq)
-            out_target.append(target[t])
-
-    return (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-
-def _makeValidData(station_test, station_train, divide):
-
-    '''
-    :param station_test:
-    :param station_train:
-    :return:
-    '''
-
-    # raw data
-    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
-    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
-    meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
-    aqiData = pickle.load(open("datatmp/aqiData.pkl", "rb"))
-    targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
-
-    '''
-    featureData_t = (local_static, local_seq, others_static, others_seq)_t
-    labelData_t = target_t
-    '''
-    # time-series
-    offset = 0
-    for T in list(np.array_split(list(range(len(targetData[station_test[0]]))), divide)):
-
         # output
         out_local_static = list()
         out_local_seq = list()
@@ -609,117 +389,6 @@ def _makeValidData(station_test, station_train, divide):
         out_others_seq = list()
         out_target = list()
 
-        for station_local in station_test:
-
-            for station_removed in station_train:
-
-                station_others = station_train.copy()
-                station_others.remove(station_removed)
-                '''
-                calculate distance and angle of other stations from local stations
-                '''
-                # lat, lon of local station
-                lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
-                lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
-
-                # distance and angle
-                distance = list()
-                angle = list()
-                for sid in station_others:
-                    lat = float(stationData[stationData["sid"] == sid]["lat"])
-                    lon = float(stationData[stationData["sid"] == sid]["lon"])
-                    result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-                    distance.append(result["distance"])
-                    angle.append(result["azimuth1"])
-
-                # normalization
-                if len(distance) == 1:
-                    distance = [1.0]
-                    angle = [1.0]
-                else:
-                    maximum, minimum = max(distance), min(distance)
-                    distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
-                    maximum, minimum = max(angle), min(angle)
-                    angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
-
-                # add
-                others_static = list()
-                idx = 0
-                for sid in station_others:
-                    others_static.append(staticData[sid] + [distance[idx], angle[idx]])
-                    idx += 1
-
-                '''
-                concut meteorological data with aqi data of seqData of others
-                '''
-                seqData_others = dict()
-                for sid in station_others:
-                    m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
-                    a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
-                    for i in range(len(m)):
-                        for j in range(len(m[i])):
-                            m[i][j] += a[i][j]
-                    seqData_others[sid] = m
-
-                '''
-                local data and target data
-                '''
-                local_static = staticData[station_local]
-                local_seq = meteorologyData[station_local]
-                target = targetData[station_local]
-
-                '''
-                make datatmp
-                '''
-                for t in list(T):
-
-                    others_seq = list()
-                    for sid in station_others:
-                        others_seq.append(seqData_others[sid][t])
-
-                    out_local_static.append(local_static)
-                    out_local_seq.append(local_seq[t])
-                    out_others_static.append(others_static)
-                    out_others_seq.append(others_seq)
-                    out_target.append(target[t])
-
-        out_tuple = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-        with open("tmp/valid_{}.pkl".format(str(offset).zfill(3)), "wb") as pl:
-            pickle.dump(out_tuple, pl)
-        del out_tuple
-        offset += 1
-
-def _makeTestData(station_test, station_train, divide, offset):
-
-    '''
-    :param station_test:
-    :param station_train:
-    :return:
-    '''
-
-    # raw data
-    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
-    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
-    meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
-    aqiData = pickle.load(open("datatmp/aqiData.pkl", "rb"))
-    targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
-
-    '''
-    featureData_t = (local_static, local_seq, others_static, others_seq)_t
-    labelData_t = target_t
-    '''
-    # time-series
-    T = list(np.array_split(list(range(len(targetData[station_test[0]]))), divide))[offset]
-
-    # output
-    out_local_static = list()
-    out_local_seq = list()
-    out_others_static = list()
-    out_others_seq = list()
-    out_target = list()
-
-    for station_local in station_test:
-
         for station_removed in station_train:
 
             station_others = station_train.copy()
@@ -780,7 +449,7 @@ def _makeTestData(station_test, station_train, divide, offset):
             '''
             make datatmp
             '''
-            for t in list(T):
+            for t in range(len(target)):
 
                 others_seq = list()
                 for sid in station_others:
@@ -792,7 +461,14 @@ def _makeTestData(station_test, station_train, divide, offset):
                 out_others_seq.append(others_seq)
                 out_target.append(target[t])
 
-    return (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
+        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
+        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+        tdx += 1
+        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
+
+    with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
+        pickle.dump({"test": tdx}, fp)
 
 def objective(trial):
 
@@ -839,8 +515,8 @@ def objective(trial):
     dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
 
     # the number which the train/validation dataset was divivded into
-    divide_train = pickle.load(open("{}/divide_train.plk".format(dataPath), "rb"))
-    divide_valid = pickle.load(open("{}/divide_valid.plk".format(dataPath), "rb"))
+    trainNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["train"]
+    validNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["valid"]
 
     # start training
     for step in range(int(epochs)):
@@ -848,10 +524,10 @@ def objective(trial):
         epoch_loss = list()
 
         # train
-        for idx in range(divide_train):
+        for idx in range(trainNum):
 
-            selector = "train_{}.pkl.bz2".format(str(idx).zfill(3))
-            trainData = MyDataset(pickle.loads(bz2.BZ2File(dataPath+selector, 'rb').read()))
+            selector = "/train_{}.pkl.bz2".format(str(idx).zfill(3))
+            trainData = MyDataset(pickle.load(bz2.BZ2File(dataPath+selector, 'rb')))
             for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
 
                 print("\t|- batch loss: ", end="")
@@ -892,9 +568,9 @@ def objective(trial):
         rmse = list()
         accuracy = list()
         model.eval()
-        for idx in range(divide_valid):
-            selector = "valid_{}.pkl.bz2".format(str(idx).zfill(3))
-            validData = MyDataset(pickle.loads(bz2.BZ2File(dataPath+selector, 'rb').read()))
+        for idx in range(validNum):
+            selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
+            validData = MyDataset(pickle.load(bz2.BZ2File(dataPath+selector, 'rb')))
             rmse_i, accuracy_i = validate(model, validData)
             rmse.append(rmse_i)
             accuracy.append(accuracy_i)
@@ -970,7 +646,7 @@ def evaluate(model_state_dict):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # input dimension
-    inputDim = pickle.load(open("model/inputDim.pickle", "rb"))
+    inputDim = pickle.load(open("datatmp/inputDim.pkl", "rb"))
 
     # model
     model = ADAIN(inputDim_local_static=inputDim["local_static"],
@@ -992,15 +668,15 @@ def evaluate(model_state_dict):
     dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
 
     # the number which the test dataset was divided into
-    divide_test = pickle.load(open("{}/divide_test.pkl".format(dataPath), "rb"))
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
     batch_size = 2000
     iteration = 0
 
-    for idx in range(divide_test):
+    for idx in range(testNum):
 
-        selector = "test_{}.pkl.bz2".format(str(idx).zfill(3))
-        testData = MyDataset(pickle.loads(bz2.BZ2File(dataPath + selector, 'rb').read()))
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        testData = MyDataset(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
         for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
             batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_target = batch_i
@@ -1022,7 +698,7 @@ def evaluate(model_state_dict):
             result_label += batch_target
 
             iteration += len(batch_target)
-            print("\t|- iteration %d / %d" % (iteration, len(testData)))
+            print("\t|- iteration %d / %d" % (iteration, len(testData)*testNum))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
