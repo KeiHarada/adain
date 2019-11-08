@@ -1,17 +1,18 @@
 database/**/*.csv
 database/meteorology/unknown/*.csv
-dataset/*.pickle
-model/*.pickle
+datatmp/*.pkl
+log/*.csv
+model/*.pkl
 rawdata/osm/**/osm*
 rawdata/poi/*.csv
 rawdata/zheng2015/*.csv
 result/*.csv
-log/*.csv
-tmp/*.pickle
+source/__pycache__/*
+tmp/*.pkl
 tmp/*.pdf
 tmp/*.csv
 tmp/*.txt
-source/__pycache__/*
+tmp/*.pt
 .git/
 .idea/
 
@@ -27,4 +28,3 @@ rawdata/osm/develop/.DS_Store
 rawdata/osm/small/.DS_Store
 rawdata/osm/large/.DS_Store
 rawdata/zheng2015/readme.pdf
-tmp/checkpoint.pt

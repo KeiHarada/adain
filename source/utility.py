@@ -12,27 +12,12 @@ import torch.optim as optim
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
 
-def memory_limit():
-    free_memory = get_memory()
-    soft = free_memory * 1024 * 0.8
-    hard = free_memory * 1024
-    resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
-
-def get_memory():
-    with open('/proc/meminfo', 'r') as mem:
-        free_memory = 0
-        for i in mem:
-            sline = i.split()
-            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
-                free_memory += int(sline[1])
-    return free_memory
-
 class MMD_preComputed():
 
     def __init__(self, city, alpha, data_length=None):
 
         '''
-        make dataset
+        make datatmp
         '''
 
         # station data
@@ -202,7 +187,6 @@ class MMD:
         # for i in range(self.n_x):
         #     for j in range(self.n_y):
         #         XY += np.exp(-1 * self.alpha * np.linalg.norm(self.X[i]-self.Y[j], ord=2) ** 2)
-
 
         # multi-processing
         # pool = mp.Pool(self.proc)
