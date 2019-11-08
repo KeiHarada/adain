@@ -716,11 +716,11 @@ if __name__ == "__main__":
     create dataset
     '''
     makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    AAAI18()
-    city1train(CITIEs20, CITIEs4)
-    city1test(CITIEs20, CITIEs4)
-    cityTest5(CITIEs4)
     cityTest19(CITIEs20, CITIEs4)
+    cityTest5(CITIEs4)
+    city1test(CITIEs20, CITIEs4)
+    city1train(CITIEs20, CITIEs4)
+    AAAI18()
 
     '''
     Experiment0:

@@ -1,5 +1,6 @@
 database/**/*.csv
 database/meteorology/unknown/*.csv
+dataset/
 datatmp/*.pkl
 log/*.csv
 model/*.pkl
