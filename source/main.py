@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # to run on server
 import sys
 sys.path.append("/home/harada/Documents/WorkSpace/adain")
@@ -25,7 +26,7 @@ from source.utility import MMD_preComputed
 def expAAAI(TRIAL, CITY):
 
     '''
-    AAAI 2018 の再実験
+    AAAI 2018の再実験
     '''
 
     # to evaluate
