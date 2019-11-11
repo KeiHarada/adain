@@ -1,6 +1,5 @@
 database/**/*.csv
 database/meteorology/unknown/*.csv
-dataset/
 datatmp/*.pkl
 log/*.csv
 model/*.pkl
@@ -18,6 +17,7 @@ tmp/*.pt
 .idea/
 
 .python-version
+.DS_Store
 env_name
 database/.DS_Store
 database/aqi/.DS_Store
