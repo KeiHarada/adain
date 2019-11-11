@@ -382,14 +382,14 @@ def makeTestData(savePath, station_test, station_train):
     tdx = 0
     for station_local in station_test:
 
-        # output
-        out_local_static = list()
-        out_local_seq = list()
-        out_others_static = list()
-        out_others_seq = list()
-        out_target = list()
-
         for station_removed in station_train:
+
+            # output
+            out_local_static = list()
+            out_local_seq = list()
+            out_others_static = list()
+            out_others_seq = list()
+            out_target = list()
 
             station_others = station_train.copy()
             station_others.remove(station_removed)
@@ -461,11 +461,11 @@ def makeTestData(savePath, station_test, station_train):
                 out_others_seq.append(others_seq)
                 out_target.append(target[t])
 
-        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
-            fp.write(pickle.dumps(out_set))
-        tdx += 1
-        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
+            out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
+            with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
+                fp.write(pickle.dumps(out_set))
+            tdx += 1
+            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
 
     with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
         pickle.dump({"test": tdx}, fp)
