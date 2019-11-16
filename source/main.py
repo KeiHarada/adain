@@ -718,9 +718,9 @@ if __name__ == "__main__":
     '''
     create dataset
     '''
-    makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    #cityTest19(CITIEs20, CITIEs4)
-    cityTest5(CITIEs4)
+    #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
+    cityTest19(CITIEs20, CITIEs4)
+    #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
     #city1train(CITIEs20, CITIEs4)
     #AAAI18()
@@ -754,15 +754,15 @@ if __name__ == "__main__":
     Experiment3:
     全都市で訓練したモデルの性能検証実験
     '''
-    # for TARGET in CITIEs4:
-    #     exp19cities(TRIAL, TARGET)
+    for TARGET in CITIEs4:
+        exp19cities(TRIAL, TARGET)
 
     '''
     Experiment4:
     距離の近い都市で訓練したモデルの性能検証実験
     '''
-    for TARGET in CITIEs4:
-        exp5cities(TRIAL, TARGET)
+    # for TARGET in CITIEs4:
+    #     exp5cities(TRIAL, TARGET)
 
     '''
     Experiment5:
