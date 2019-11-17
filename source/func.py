@@ -476,6 +476,116 @@ def makeTestData(savePath, station_test, station_train):
     with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
         pickle.dump({"test": tdx}, fp)
 
+def makeTestData_sampled(savePath, station_test, station_train):
+    '''
+    :param station_train): a list of station ids
+    :return: featureData, labelData
+    '''
+
+    # raw data
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+    meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
+    aqiData = pickle.load(open("datatmp/aqiData.pkl", "rb"))
+    targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+
+    '''
+    featureData_t = (local_static, local_seq, others_static, others_seq)_t
+    labelData_t = target_t
+    '''
+
+    tdx = 0
+    for station_local in station_test:
+
+        # output
+        out_local_static = list()
+        out_local_seq = list()
+        out_others_static = list()
+        out_others_seq = list()
+        out_target = list()
+
+        station_others = station_train.copy()
+        station_remove = station_others[random.randint(0, len(station_others)-1)]
+        station_others.remove(station_remove)
+        '''
+        calculate distance and angle of other stations from local stations
+        '''
+        # lat, lon of local station
+        lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
+        lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
+
+        # distance and angle
+        distance = list()
+        angle = list()
+        for sid in station_others:
+            lat = float(stationData[stationData["sid"] == sid]["lat"])
+            lon = float(stationData[stationData["sid"] == sid]["lon"])
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            distance.append(result["distance"])
+            angle.append(result["azimuth1"])
+
+        # normalization
+        if len(distance) == 1:
+            distance = [1.0]
+            angle = [1.0]
+        else:
+            maximum, minimum = max(distance), min(distance)
+            distance = list(map(lambda x: (x - minimum) / (maximum - minimum), distance))
+            maximum, minimum = max(angle), min(angle)
+            angle = list(map(lambda x: (x - minimum) / (maximum - minimum), angle))
+
+        # add
+        others_static = list()
+        idx = 0
+        for sid in station_others:
+            others_static.append(staticData[sid] + [distance[idx], angle[idx]])
+            idx += 1
+
+        '''
+        concut meteorological data with aqi data of seqData of others
+        '''
+        seqData_others = dict()
+        for sid in station_others:
+            m = _pickle.loads(_pickle.dumps(meteorologyData[sid], -1))  # _pickleを使った高速コピー
+            a = _pickle.loads(_pickle.dumps(aqiData[sid], -1))  # _pickleを使った高速コピー
+            for i in range(len(m)):
+                for j in range(len(m[i])):
+                    m[i][j] += a[i][j]
+            seqData_others[sid] = m
+
+        '''
+        local data and target data
+        '''
+        local_static = staticData[station_local]
+        local_seq = meteorologyData[station_local]
+        target = targetData[station_local]
+
+        '''
+        make datatmp
+        '''
+        for t in range(len(target)):
+
+            others_seq = list()
+            for sid in station_others:
+                others_seq.append(seqData_others[sid][t])
+
+            out_local_static.append(local_static)
+            out_local_seq.append(local_seq[t])
+            out_others_static.append(others_static)
+            out_others_seq.append(others_seq)
+            out_target.append(target[t])
+
+        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
+        with open("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb') as fp:
+            out_set = bz2.compress(pickle.dumps(out_set), compresslevel=9)
+            print("* save test_{}.pkl.bz2: {} MB".format(str(tdx).zfill(3), str(sys.getsizeof(out_set)/10**6)))
+            fp.write(pickle.dumps(out_set))
+        tdx += 1
+        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
+
+    with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
+        pickle.dump({"test": tdx}, fp)
+
 def objective(trial):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"

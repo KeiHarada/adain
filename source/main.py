@@ -16,6 +16,7 @@ import pandas as pd
 from source.func import makeDataset
 from source.func import makeTrainData
 from source.func import makeTestData
+from source.func import makeTestData_sampled
 from source.func import objective
 from source.func import evaluate
 from source.utility import get_dist_angle
@@ -675,7 +676,7 @@ def cityTest19(CITIEs20, CITIEs4):
 
             print("\t* test set")
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
-            makeTestData(savePath, station_test, station_train)
+            makeTestData_sampled(savePath, station_test, station_train)
 
 if __name__ == "__main__":
 
@@ -719,7 +720,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    #cityTest19(CITIEs20, CITIEs4)
+    cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
     #city1train(CITIEs20, CITIEs4)
@@ -754,8 +755,8 @@ if __name__ == "__main__":
     Experiment3:
     全都市で訓練したモデルの性能検証実験
     '''
-    # for TARGET in CITIEs4:
-    #     exp19cities(TRIAL, TARGET)
+    for TARGET in CITIEs4:
+        exp19cities(TRIAL, TARGET)
 
     '''
     Experiment4:
@@ -768,10 +769,10 @@ if __name__ == "__main__":
     Experiment5:
     他都市で訓練したモデルでの性能検証実験
     '''
-    for TARGET in CITIEs4:
-        SOURCEs = CITIEs20.copy()
-        SOURCEs.remove(TARGET)
-        exp1city(TRIAL, SOURCEs, TARGET)
+    # for TARGET in CITIEs4:
+    #     SOURCEs = CITIEs20.copy()
+    #     SOURCEs.remove(TARGET)
+    #     exp1city(TRIAL, SOURCEs, TARGET)
 
     '''
     距離計算
