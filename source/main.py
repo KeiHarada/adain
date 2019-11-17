@@ -439,7 +439,7 @@ def exp1city(TRIAL, SOURCEs, TARGET):
             log.to_csv("log/{}Test1_{}.csv".format(TARGET, SOURCE, str(loop)), index=False)
 
             # load best model
-            model_state_dict = pickle.load(open("model/{}Test1_{}.pkl".format(TARGET, SOURCE, str(loop)), "rb"))
+            model_state_dict = pickle.load(open("model/{}Test1_{}{}.pkl".format(TARGET, SOURCE, str(loop)), "rb"))
 
             # evaluate
             print("*TARGET: {}{}".format(TARGET, str(loop)))
@@ -517,11 +517,11 @@ def AAAI18():
         station_train = station[:trainNum]
         station_test = station[trainNum:]
 
-        print("\t* train set")
+        print("* train set")
         savePath = "dataset/{}/train_{}{}".format(dataset, CITY, str(loop))
         makeTrainData(savePath, station_train)
 
-        print("\t* test set")
+        print("* test set")
         savePath = "dataset/{}/test_{}{}".format(dataset, CITY, str(loop))
         makeTestData(savePath, station_test, station_train)
 
@@ -538,18 +538,18 @@ def city1train(CITIEs20, CITIEs4):
 
         for loop in range(1, 4):
 
-            print("\t* Shuffle Loop: {}".format(str(loop)))
+            print("* Shuffle Loop: {}".format(str(loop)))
             station_target = list(pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)["sid"])
             random.shuffle(station_target)
             station_train = station_target[:5]
 
-            print("\t* train set")
+            print("* train set")
             savePath = "dataset/{}/train_{}{}".format(dataset, TARGET, str(loop))
             makeTrainData(savePath, station_train)
 
             for SOURCE in CITIEs20:
 
-                print("\t* Source: {}".format(SOURCE))
+                print("* Source: {}".format(SOURCE))
 
                 if SOURCE == TARGET:
                     station_test = station_target[5:10]
@@ -558,7 +558,7 @@ def city1train(CITIEs20, CITIEs4):
                     random.shuffle(station_test)
                     station_test = station_test[:5]
 
-                print("\t\t* test set")
+                print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
                 makeTestData(savePath, station_test, station_train)
 
@@ -578,24 +578,24 @@ def city1test(CITIEs20, CITIEs4):
 
         for loop in range(1, 4):
 
-            print("\t* Shuffle Loop: {}".format(str(loop)))
+            print("* Shuffle Loop: {}".format(str(loop)))
             station_test = list(pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)["sid"])
             random.shuffle(station_test)
             station_test = station_test[:5]
 
             for SOURCE in SOURCEs:
 
-                print("\t* Source: {}".format(SOURCE))
+                print("* Source: {}".format(SOURCE))
 
                 station_train = list(pd.read_csv("database/station/station_{}.csv".format(SOURCE), dtype=object)["sid"])
                 random.shuffle(station_train)
                 station_train = station_train[:5]
 
-                print("\t\t* train set")
+                print("* train set")
                 savePath = "dataset/{}/train_{}{}".format(dataset, SOURCE, str(loop))
                 makeTrainData(savePath, station_train)
 
-                print("\t\t* test set")
+                print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
                 makeTestData(savePath, station_test, station_train)
 
@@ -635,11 +635,11 @@ def cityTest5(CITIEs4):
                 station_train += station_source[:5]
             random.shuffle(station_train)
 
-            print("\t* train set")
+            print("* train set")
             savePath = "dataset/{}/train{}".format(dataset, str(loop))
             makeTrainData(savePath, station_train)
 
-            print("\t* test set")
+            print("* test set")
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
             makeTestData(savePath, station_test, station_train)
 
@@ -650,6 +650,8 @@ def cityTest19(CITIEs20, CITIEs4):
     print("--------------")
 
     for TARGET in CITIEs4:
+
+        print("*---TARGET: {}".format(TARGET))
 
         SOURCEs = CITIEs20.copy()
         SOURCEs.remove(TARGET)
@@ -670,11 +672,11 @@ def cityTest19(CITIEs20, CITIEs4):
                 station_train += station_source[:5]
             random.shuffle(station_train)
 
-            print("\t* train set")
+            print("* train set")
             savePath = "dataset/{}/train{}".format(dataset, str(loop))
             makeTrainData(savePath, station_train)
 
-            print("\t* test set")
+            print("* test set")
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
             makeTestData_sampled(savePath, station_test, station_train)
 
@@ -720,7 +722,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    cityTest19(CITIEs20, CITIEs4)
+    #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
     #city1train(CITIEs20, CITIEs4)
@@ -755,8 +757,8 @@ if __name__ == "__main__":
     Experiment3:
     全都市で訓練したモデルの性能検証実験
     '''
-    for TARGET in CITIEs4:
-        exp19cities(TRIAL, TARGET)
+    # for TARGET in CITIEs4:
+    #     exp19cities(TRIAL, TARGET)
 
     '''
     Experiment4:
