@@ -523,7 +523,7 @@ def AAAI18():
 
         print("* test set")
         savePath = "dataset/{}/test_{}{}".format(dataset, CITY, str(loop))
-        makeTestData(savePath, station_test, station_train)
+        makeTestData_sampled(savePath, station_test, station_train)
 
 def city1train(CITIEs20, CITIEs4):
 
@@ -560,7 +560,7 @@ def city1train(CITIEs20, CITIEs4):
 
                 print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
-                makeTestData(savePath, station_test, station_train)
+                makeTestData_sampled(savePath, station_test, station_train)
 
 def city1test(CITIEs20, CITIEs4):
 
@@ -597,7 +597,7 @@ def city1test(CITIEs20, CITIEs4):
 
                 print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
-                makeTestData(savePath, station_test, station_train)
+                makeTestData_sampled(savePath, station_test, station_train)
 
 def cityTest5(CITIEs4):
 
@@ -641,7 +641,7 @@ def cityTest5(CITIEs4):
 
             print("* test set")
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
-            makeTestData(savePath, station_test, station_train)
+            makeTestData_sampled(savePath, station_test, station_train)
 
 def cityTest19(CITIEs20, CITIEs4):
 
