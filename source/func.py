@@ -1075,9 +1075,12 @@ def evaluate_KNN(SOURCEs, TARGET, K):
 
     # aqi data
     aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+    for k, v in aqiData.items():
+        aqiData[k] = list(map(lambda x: x[0], v))
 
     # for each station in target city
     rmse = list()
+    accuracy = list()
     for sid_t in list(target_station["sid"]):
 
         # calculate distance from the local station
@@ -1105,11 +1108,12 @@ def evaluate_KNN(SOURCEs, TARGET, K):
         # aqi data of target city
         aqiData_target = aqiData[sid_t]
 
-        # calculate RMSE
-        aqiData_source = np.mean(np.array(aqiData_source), axis=0)
+        # evaluate
+        aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
         rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
+        accuracy.append(calc_correct(aqiData_source, aqiData_target) / len(aqiData_target))
 
-    return np.mean(rmse)
+    return np.mean(rmse), np.mean(accuracy)
 
 def evaluate_LI(SOURCEs, TARGET):
 
@@ -1125,9 +1129,12 @@ def evaluate_LI(SOURCEs, TARGET):
 
     # aqi data
     aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+    for k, v in aqiData.items():
+        aqiData[k] = list(map(lambda x: x[0], v))
 
     # for each station in target city
     rmse = list()
+    accuracy = list()
     for sid_t in list(target_station["sid"]):
 
         # calculate distance from the local station
@@ -1150,13 +1157,14 @@ def evaluate_LI(SOURCEs, TARGET):
         # agi data of source cities
         aqiData_source = list()
         for sid_s in list(source_station["sid"]):
-            aqiData_source.append(distance[sid_s] * aqiData[sid_s])
+            aqiData_source.append(list(distance[sid_s] * np.array(aqiData[sid_s])))
 
         # aqi data of target city
         aqiData_target = aqiData[sid_t]
 
-        # calculate RMSE
-        aqiData_source = np.sum(np.array(aqiData_source), axis=0)
+        # evaluate
+        aqiData_source = list(np.sum(np.array(aqiData_source), axis=0))
         rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
+        accuracy.append(calc_correct(aqiData_source, aqiData_target) / len(aqiData_target))
 
-    return np.mean(rmse)
+    return np.mean(rmse), np.mean(accuracy)

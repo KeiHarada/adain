@@ -402,7 +402,7 @@ def expFNN(TRIAL, TARGET):
 def expKNN(SOURCEs, TARGET):
 
     '''
-    KNN: 距離の近い K このステーションの平
+    KNN: 距離の近い K このステーションの平均
     '''
 
     # to evaluate
@@ -412,12 +412,6 @@ def expKNN(SOURCEs, TARGET):
     for loop in range(1, 4):
         start = time.time()
         print("----------------")
-
-        # save dataset path
-        with open("tmp/trainPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19/train{}".format(TARGET, str(loop)), fp)
-        with open("tmp/testPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
 
         # evaluate
         print("* TARGET: {}{}".format(TARGET, str(loop)))
@@ -457,12 +451,6 @@ def expLI(SOURCEs, TARGET):
     for loop in range(1, 4):
         start = time.time()
         print("----------------")
-
-        # save dataset path
-        with open("tmp/trainPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19/train{}".format(TARGET, str(loop)), fp)
-        with open("tmp/testPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
 
         # evaluate
         print("* TARGET: {}{}".format(TARGET, str(loop)))
@@ -932,13 +920,29 @@ if __name__ == "__main__":
     #     exp1city(TRIAL, SOURCEs, TARGET)
 
     '''
+    Experiment6:
+    比較手法 KNN
+    '''
+    for TARGET in CITIEs4:
+        SOURCEs = CITIEs20.copy()
+        SOURCEs.remove(TARGET)
+        expKNN(SOURCEs, TARGET)
+
+    '''
     Experiment8:
-    LI
+    比較手法　LI
     '''
     for TARGET in CITIEs4:
         SOURCEs = CITIEs20.copy()
         SOURCEs.remove(TARGET)
         expLI(SOURCEs, TARGET)
+
+    '''
+    Experiment8:
+    比較手法 FNN
+    '''
+    # for TARGET in CITIEs4:
+    #     expFNN(TRIAL, TARGET)
 
     '''
     距離計算
