@@ -399,61 +399,91 @@ def expFNN(TRIAL, TARGET):
             result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
         result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
-def expKNN(SOURCEs, TARGET):
+def expKNN(TARGET):
 
     '''
-    KNN: 距離の近い K このステーションの平均
+    KNN: 距離の近い K このステーションの平
     '''
 
-    start = time.time()
-    print("----------------")
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
 
-    # evaluate
-    print("* TARGET: {}".format(TARGET))
-    rmse, accuracy = evaluate_KNN(SOURCEs, TARGET, K=3)
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
 
-    # time
-    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+        # save dataset path
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_KNN(K=3)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19KNN.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        result.write("rmse,{}\n".format(str(rmse)))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        result.write("accuracy,{}\n".format(str(accuracy)))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
-def expLI(SOURCEs, TARGET):
+def expLI(TARGET):
 
     '''
     LI: 距離の逆数の比で重み付け
     '''
 
-    start = time.time()
-    print("----------------")
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
 
-    # evaluate
-    print("* TARGET: {}".format(TARGET))
-    rmse, accuracy = evaluate_LI(SOURCEs, TARGET)
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
 
-    # time
-    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+        # save dataset path
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_LI()
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19LI.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        result.write("rmse,{}\n".format(str(rmse)))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        result.write("accuracy,{}\n".format(str(accuracy)))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
 def exp5cities(TRIAL, TARGET):
 
@@ -897,6 +927,8 @@ if __name__ == "__main__":
     #     SOURCEs.remove(TARGET)
     #     exp1city(TRIAL, SOURCEs, TARGET)
 
+    CITIEs4 = ["BeiJing"]
+
     '''
     Experiment6:
     比較手法 KNN
@@ -904,23 +936,23 @@ if __name__ == "__main__":
     for TARGET in CITIEs4:
         SOURCEs = CITIEs20.copy()
         SOURCEs.remove(TARGET)
-        expKNN(SOURCEs, TARGET)
+        expKNN(TARGET)
 
     '''
-    Experiment8:
+    Experiment7:
     比較手法　LI
     '''
     for TARGET in CITIEs4:
         SOURCEs = CITIEs20.copy()
         SOURCEs.remove(TARGET)
-        expLI(SOURCEs, TARGET)
+        expLI(TARGET)
 
     '''
     Experiment8:
     比較手法 FNN
     '''
-    # for TARGET in CITIEs4:
-    #     expFNN(TRIAL, TARGET)
+    for TARGET in CITIEs4:
+        expFNN(TRIAL, TARGET)
 
     '''
     距離計算

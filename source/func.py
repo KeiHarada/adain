@@ -843,27 +843,27 @@ def objective_FNN(trial):
 
     # dataset path
     dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
-    selector = "/train000.pkl.bz2"
+    selector = "/train_000.pkl.bz2"
 
     # dataset
-    dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
-    local_static, local_seq, others_static, others_seq, target = dataset
-    dataset = []
+    local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+
+    dataset = list()
     inputDim = 0
     for i in range(len(target)):
-        trainData_i = local_static[i]
-        trainData_i += local_seq[-1]
-        for j in range(len(others_static)):
-            trainData_i += others_static[j]
-            trainData_i += others_seq[j][-1]
+        trainData_i = list()
+        trainData_i += local_static[i]
+        trainData_i += local_seq[i][-1]
+        for j in range(len(others_static[i])):
+            trainData_i += others_static[i][j]
+            trainData_i += others_seq[i][j][-1]
         dataset.append(trainData_i)
         inputDim = len(trainData_i)
 
     # train and validation data
-    trainNum = math.floor(len(dataset))
-    random.shuffle(dataset)
-    trainData = MyDataset_FNN(dataset[:trainNum])
-    validData = MyDataset_FNN(dataset[trainNum:])
+    trainNum = math.floor(len(dataset)*0.67)
+    trainData = MyDataset_FNN(dataset[:trainNum], target[:trainNum])
+    validData = MyDataset_FNN(dataset[trainNum:], target[trainNum:])
     del dataset
 
     # model
@@ -972,7 +972,6 @@ def validate_FNN(model, validData):
 
         # to GPU
         batch_feature = batch_feature.to(device)
-        batch_target = batch_target.to(device)
 
         # predict
         pred = model(batch_feature)
@@ -1001,21 +1000,23 @@ def evaluate_FNN(model_state_dict):
     testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
     # dataset
-    testData = []
+    testData = list()
+    labelData = list()
     inputDim = 0
     for idx in range(testNum):
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
-        dataset = MyDataset(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
-        local_static, local_seq, others_static, others_seq, target = dataset
+        local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
         for i in range(len(target)):
-            testData_i = local_static[i]
-            testData_i += local_seq[-1]
-            for j in range(len(others_static)):
-                testData_i += others_static[j]
-                testData_i += others_seq[j][-1]
+            testData_i = list()
+            testData_i += local_static[i]
+            testData_i += local_seq[i][-1]
+            for j in range(len(others_static[i])):
+                testData_i += others_static[i][j]
+                testData_i += others_seq[i][j][-1]
             testData.append(testData_i)
             inputDim = len(testData_i)
-    testData = MyDataset_FNN(testData)
+        labelData += target
+    testData = MyDataset_FNN(testData, labelData)
 
     # model
     model = FNN(inputDim=inputDim)
@@ -1039,7 +1040,6 @@ def evaluate_FNN(model_state_dict):
 
         # to GPU
         batch_feature = batch_feature.to(device)
-        batch_target = batch_target.to(device)
 
         # predict
         pred = model(batch_feature)
@@ -1061,40 +1061,55 @@ def evaluate_FNN(model_state_dict):
 
     return rmse, accuracy
 
-def evaluate_KNN(SOURCEs, TARGET, K):
-
-    # station data
-    target_station = pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)
-
-    for source in SOURCEs:
-        if source == SOURCEs[0]:
-            source_station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
-        else:
-            station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
-            source_station = pd.concat([source_station, station], ignore_index=True)
+def evaluate_KNN(K):
 
     # aqi data
     aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
     for k, v in aqiData.items():
         aqiData[k] = list(map(lambda x: x[0], v))
 
-    # for each station in target city
+    # static data
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+
+    # station data
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
+    # the number which the test dataset was divided into
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
+
+    # evaluate
     rmse = list()
     accuracy = list()
-    for sid_t in list(target_station["sid"]):
+    for idx in range(testNum):
+
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+        local_static, others_static = dataset[0][0], dataset[2][0]
+
+        # target station
+        target_station = [k for k, v in staticData.items() if v == local_static][0]
+
+        # source stations
+        source_station = list()
+        for staticData_i in others_static:
+            staticData_i = staticData_i[:-2]
+            source_station.append([k for k, v in staticData.items() if v == staticData_i][0])
 
         # calculate distance from the local station
         # local station
-        lat_local = float(target_station[target_station["sid"] == sid_t]["lat"])
-        lon_local = float(target_station[target_station["sid"] == sid_t]["lon"])
+        lat_target = float(stationData[stationData["sid"] == target_station]["lat"])
+        lon_target = float(stationData[stationData["sid"] == target_station]["lon"])
 
         # distance
         distance = dict()
-        for sid_s in list(source_station["sid"]):
-            lat = float(source_station[source_station["sid"] == sid_s]["lat"])
-            lon = float(source_station[source_station["sid"] == sid_s]["lon"])
-            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-            distance[sid_s] = result["distance"]
+        for source_station_i in source_station:
+            lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
+            lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
+            result = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)
+            distance[source_station_i] = result["distance"]
 
         # get K nearest neighbors
         distance = sorted(distance.items(), key=lambda x: x[1])
@@ -1102,11 +1117,11 @@ def evaluate_KNN(SOURCEs, TARGET, K):
 
         # agi data of source cities
         aqiData_source = list()
-        for sid_s in nearest:
-            aqiData_source.append(aqiData[sid_s])
+        for source_station_i in nearest:
+            aqiData_source.append(aqiData[source_station_i])
 
         # aqi data of target city
-        aqiData_target = aqiData[sid_t]
+        aqiData_target = aqiData[target_station]
 
         # evaluate
         aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
@@ -1115,55 +1130,70 @@ def evaluate_KNN(SOURCEs, TARGET, K):
 
     return np.mean(rmse), np.mean(accuracy)
 
-def evaluate_LI(SOURCEs, TARGET):
-
-    # station data
-    target_station = pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)
-
-    for source in SOURCEs:
-        if source == SOURCEs[0]:
-            source_station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
-        else:
-            station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
-            source_station = pd.concat([source_station, station], ignore_index=True)
+def evaluate_LI():
 
     # aqi data
     aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
     for k, v in aqiData.items():
         aqiData[k] = list(map(lambda x: x[0], v))
 
-    # for each station in target city
+    # static data
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+
+    # station data
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
+    # the number which the test dataset was divided into
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
+
+    # evaluate
     rmse = list()
     accuracy = list()
-    for sid_t in list(target_station["sid"]):
+    for idx in range(testNum):
+
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+        local_static, others_static = dataset[0][0], dataset[2][0]
+
+        # target station
+        target_station = [k for k, v in staticData.items() if v == local_static][0]
+
+        # source stations
+        source_station = list()
+        for staticData_i in others_static:
+            staticData_i = staticData_i[:-2]
+            source_station.append([k for k, v in staticData.items() if v == staticData_i][0])
 
         # calculate distance from the local station
         # local station
-        lat_local = float(target_station[target_station["sid"] == sid_t]["lat"])
-        lon_local = float(target_station[target_station["sid"] == sid_t]["lon"])
+        lat_target = float(stationData[stationData["sid"] == target_station]["lat"])
+        lon_target = float(stationData[stationData["sid"] == target_station]["lon"])
 
         # distance
         distance = dict()
-        for sid_s in list(source_station["sid"]):
-            lat = float(source_station[source_station["sid"] == sid_s]["lat"])
-            lon = float(source_station[source_station["sid"] == sid_s]["lon"])
-            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-            distance[sid_s] = 1 / result["distance"]
+        for source_station_i in source_station:
+            lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
+            lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
+            result = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)
+            distance[source_station_i] = 1 / result["distance"]
 
         # calculate population
         dist_sum = sum(list(distance.values()))
-        distance = {sid_s: distance[sid_s]/dist_sum for sid_s in list(distance.keys())}
+        distance = {source_station_i: distance[source_station_i]/dist_sum for source_station_i in list(distance.keys())}
 
         # agi data of source cities
         aqiData_source = list()
-        for sid_s in list(source_station["sid"]):
-            aqiData_source.append(list(distance[sid_s] * np.array(aqiData[sid_s])))
+        for source_station_i in source_station:
+            aqiData_source.append(list(distance[source_station_i] * np.array(aqiData[source_station_i])))
 
         # aqi data of target city
-        aqiData_target = aqiData[sid_t]
+        aqiData_target = aqiData[target_station]
 
         # evaluate
-        aqiData_source = list(np.sum(np.array(aqiData_source), axis=0))
+        aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
         rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
         accuracy.append(calc_correct(aqiData_source, aqiData_target) / len(aqiData_target))
 

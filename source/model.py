@@ -2,12 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class KNN():
-    pass
-
-class LI():
-    pass
-
 # FNN
 class FNN(nn.Module):
     def __init__(self, inputDim):
