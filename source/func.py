@@ -350,16 +350,14 @@ def makeTrainData(savePath, station_train):
         out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
 
         if tdx > trainNum-1:
-            with open("{}/valid_{}.pkl.bz2".format(savePath, str(vdx).zfill(3)), 'wb') as fp:
-                out_set = bz2.compress(pickle.dumps(out_set), compresslevel=9)
-                print("* save valid_{}.pkl.bz2: {} MB".format(str(vdx).zfill(3), str(sys.getsizeof(out_set)/10**6)))
+            with bz2.BZ2File("{}/valid_{}.pkl.bz2".format(savePath, str(vdx).zfill(3)), 'wb', compresslevel=9) as fp:
                 fp.write(pickle.dumps(out_set))
+                print("* save valid_{}.pkl.bz2".format(str(vdx).zfill(3)))
             vdx += 1
         else:
-            with open("{}/train_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb') as fp:
-                out_set = bz2.compress(pickle.dumps(out_set), compresslevel=9)
-                print("* save train_{}.pkl.bz2: {} MB".format(str(tdx).zfill(3), str(sys.getsizeof(out_set)/10**6)))
+            with bz2.BZ2File("{}/train_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
                 fp.write(pickle.dumps(out_set))
+                print("* save train_{}.pkl.bz2".format(str(tdx).zfill(3)))
             tdx += 1
 
         del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
@@ -468,11 +466,12 @@ def makeTestData(savePath, station_test, station_train):
                 out_target.append(target[t])
 
             out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-            with open("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb') as fp:
-                out_set = bz2.compress(pickle.dumps(out_set), compresslevel=9)
-                print("* save test_{}.pkl.bz2: {} MB".format(str(tdx).zfill(3), str(sys.getsizeof(out_set)/10**6)))
+
+            with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
                 fp.write(pickle.dumps(out_set))
+                print("* save test_{}.pkl.bz2".format(str(tdx).zfill(3)))
             tdx += 1
+
             del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
 
     with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
@@ -578,11 +577,12 @@ def makeTestData_sampled(savePath, station_test, station_train):
             out_target.append(target[t])
 
         out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_target)
-        with open("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb') as fp:
-            out_set = bz2.compress(pickle.dumps(out_set), compresslevel=9)
-            print("* save test_{}.pkl.bz2: {} MB".format(str(tdx).zfill(3), str(sys.getsizeof(out_set)/10**6)))
+
+        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath, str(tdx).zfill(3)), 'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
+            print("* save test_{}.pkl.bz2".format(str(tdx).zfill(3)))
         tdx += 1
+
         del out_local_seq, out_local_static, out_others_seq, out_others_static, out_set
 
     with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
