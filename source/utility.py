@@ -271,6 +271,21 @@ class MyDataset(torch.utils.data.Dataset):
 
         return out_local_static, out_local_seq, out_others_static, out_others_seq, out_target
 
+class MyDataset_FNN(torch.utils.data.Dataset):
+
+    def __init__(self, feature, target):
+        self.feature = feature
+        self.target = target
+        self.data_num = len(target)
+
+    def __len__(self):
+        return self.data_num
+
+    def __getitem__(self, idx):
+        out_feature = torch.tensor(self.feature[idx])
+        out_target = torch.tensor(self.target[idx])
+        return out_feature, out_target
+
 class Color:
     BLACK     = '\033[30m'
     RED       = '\033[31m'

@@ -17,12 +17,15 @@ from source.func import makeDataset
 from source.func import makeTrainData
 from source.func import makeTestData
 from source.func import makeTestData_sampled
-from source.func import objective
-from source.func import evaluate
+from source.func import objective_ADAIN
+from source.func import objective_FNN
+from source.func import evaluate_ADAIN
+from source.func import evaluate_FNN
+from source.func import evaluate_KNN
+from source.func import evaluate_LI
 from source.utility import get_dist_angle
 from source.utility import MMD
 from source.utility import MMD_preComputed
-
 
 def expAAAI(TRIAL, CITY):
 
@@ -49,7 +52,7 @@ def expAAAI(TRIAL, CITY):
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(objective, n_trials=TRIAL)
+        study.optimize(objective_ADAIN, n_trials=TRIAL)
 
         # save best model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -64,7 +67,7 @@ def expAAAI(TRIAL, CITY):
 
         # evaluate
         print("* TARGET: {}{}".format(CITY, str(loop)))
-        rmse, accuracy = evaluate(model_state_dict)
+        rmse, accuracy = evaluate_ADAIN(model_state_dict)
         rmse_list.append(rmse)
         accuracy_list.append(accuracy)
 
@@ -110,7 +113,7 @@ def expDistance(TRIAL, SOURCE, TARGETs):
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(objective, n_trials=TRIAL)
+        study.optimize(objective_ADAIN, n_trials=TRIAL)
 
         # save best model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -133,7 +136,7 @@ def expDistance(TRIAL, SOURCE, TARGETs):
 
         # evaluate
         print("*TARGET: {}{}".format(SOURCE, str(loop)))
-        rmse, accuracy = evaluate(model_state_dict)
+        rmse, accuracy = evaluate_ADAIN(model_state_dict)
         rmse_tmp.append(rmse)
         accuracy_tmp.append(accuracy)
 
@@ -145,7 +148,7 @@ def expDistance(TRIAL, SOURCE, TARGETs):
 
             # evaluate
             print("*TARGET: {} ---".format(TARGET))
-            rmse, accuracy = evaluate(model_state_dict)
+            rmse, accuracy = evaluate_ADAIN(model_state_dict)
             rmse_tmp.append(rmse)
             accuracy_tmp.append(accuracy)
 
@@ -215,7 +218,7 @@ def expMAX(TRIAL, SOURCE, TARGETs):
     # training & parameter tuning by optuna
     # -- activate function, optimizer, eopchs, batch size
     study = optuna.create_study()
-    study.optimize(objective, n_trials=TRIAL)
+    study.optimize(objective_ADAIN, n_trials=TRIAL)
 
     # save best model
     model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -239,7 +242,7 @@ def expMAX(TRIAL, SOURCE, TARGETs):
 
         # evaluate
         print("*TARGET: {}".format(TARGET))
-        rmse, accuracy = evaluate(model_state_dict)
+        rmse, accuracy = evaluate_ADAIN(model_state_dict)
         rmse_list.append(rmse)
         accuracy_list.append(accuracy)
 
@@ -296,7 +299,7 @@ def exp19cities(TRIAL, TARGET):
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(objective, n_trials=TRIAL)
+        study.optimize(objective_ADAIN, n_trials=TRIAL)
 
         # save best model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -311,7 +314,7 @@ def exp19cities(TRIAL, TARGET):
 
         # evaluate
         print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate(model_state_dict)
+        rmse, accuracy = evaluate_ADAIN(model_state_dict)
         rmse_list.append(rmse)
         accuracy_list.append(accuracy)
 
@@ -319,6 +322,158 @@ def exp19cities(TRIAL, TARGET):
         print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19.csv".format(TARGET), "w") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+
+def expFNN(TRIAL, TARGET):
+
+    '''
+    19都市で訓練したモデルをでテスト (FNN)
+    '''
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
+        print("* SOURCE: All{}".format(str(loop)))
+
+        # save dataset path
+        with open("tmp/trainPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/train{}".format(TARGET, str(loop)), fp)
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+        # training & parameter tuning by optuna
+        # -- activate function, optimizer, eopchs, batch size
+        study = optuna.create_study()
+        study.optimize(objective_FNN, n_trials=TRIAL)
+
+        # save best model
+        model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
+        pickle.dump(model_state_dict, open("model/{}Test19FNN_{}.pkl".format(TARGET, str(loop)), "wb"))
+
+        # save train log
+        log = pickle.load(open("tmp/{}_log.pkl".format(str(study.best_trial.number).zfill(4)), "rb"))
+        log.to_csv("log/{}Test19FNN_{}.csv".format(TARGET, str(loop)), index=False)
+
+        # load best model
+        model_state_dict = pickle.load(open("model/{}Test19FNN_{}.pkl".format(TARGET, str(loop)), "rb"))
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_FNN(model_state_dict)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
+    with open("result/{}Test19FNN.csv".format(TARGET), "w") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+
+def expKNN(SOURCEs, TARGET):
+
+    '''
+    KNN: 距離の近い K このステーションの平
+    '''
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
+
+        # save dataset path
+        with open("tmp/trainPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/train{}".format(TARGET, str(loop)), fp)
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_KNN(SOURCEs, TARGET, K=3)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
+    with open("result/{}Test19KNN.csv".format(TARGET), "w") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+
+def expLI(SOURCEs, TARGET):
+
+    '''
+    LI: 距離の逆数の比で重み付け
+    '''
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
+
+        # save dataset path
+        with open("tmp/trainPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/train{}".format(TARGET, str(loop)), fp)
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_LI(SOURCEs, TARGET)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
+    with open("result/{}Test19LI.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
@@ -358,7 +513,7 @@ def exp5cities(TRIAL, TARGET):
         # training & parameter tuning by optuna
         # -- activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(objective, n_trials=TRIAL)
+        study.optimize(objective_ADAIN, n_trials=TRIAL)
 
         # save best model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -373,7 +528,7 @@ def exp5cities(TRIAL, TARGET):
 
         # evaluate
         print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate(model_state_dict)
+        rmse, accuracy = evaluate_ADAIN(model_state_dict)
         rmse_list.append(rmse)
         accuracy_list.append(accuracy)
 
@@ -428,7 +583,7 @@ def exp1city(TRIAL, SOURCEs, TARGET):
             # training & parameter tuning by optuna
             # -- activate function, optimizer, eopchs, batch size
             study = optuna.create_study()
-            study.optimize(objective, n_trials=TRIAL)
+            study.optimize(objective_ADAIN, n_trials=TRIAL)
 
             # save best model
             model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -443,7 +598,7 @@ def exp1city(TRIAL, SOURCEs, TARGET):
 
             # evaluate
             print("*TARGET: {}{}".format(TARGET, str(loop)))
-            rmse, accuracy = evaluate(model_state_dict)
+            rmse, accuracy = evaluate_ADAIN(model_state_dict)
             rmse_tmp.append(rmse)
             accuracy_tmp.append(accuracy)
 
@@ -523,7 +678,7 @@ def AAAI18():
 
         print("* test set")
         savePath = "dataset/{}/test_{}{}".format(dataset, CITY, str(loop))
-        makeTestData_sampled(savePath, station_test, station_train)
+        makeTestData(savePath, station_test, station_train)
 
 def city1train(CITIEs20, CITIEs4):
 
@@ -560,7 +715,7 @@ def city1train(CITIEs20, CITIEs4):
 
                 print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
-                makeTestData_sampled(savePath, station_test, station_train)
+                makeTestData(savePath, station_test, station_train)
 
 def city1test(CITIEs20, CITIEs4):
 
@@ -597,7 +752,7 @@ def city1test(CITIEs20, CITIEs4):
 
                 print("* test set")
                 savePath = "dataset/{}/test_{}{}".format(dataset, SOURCE, str(loop))
-                makeTestData_sampled(savePath, station_test, station_train)
+                makeTestData(savePath, station_test, station_train)
 
 def cityTest5(CITIEs4):
 
@@ -641,7 +796,7 @@ def cityTest5(CITIEs4):
 
             print("* test set")
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
-            makeTestData_sampled(savePath, station_test, station_train)
+            makeTestData(savePath, station_test, station_train)
 
 def cityTest19(CITIEs20, CITIEs4):
 
@@ -775,6 +930,15 @@ if __name__ == "__main__":
     #     SOURCEs = CITIEs20.copy()
     #     SOURCEs.remove(TARGET)
     #     exp1city(TRIAL, SOURCEs, TARGET)
+
+    '''
+    Experiment8:
+    LI
+    '''
+    for TARGET in CITIEs4:
+        SOURCEs = CITIEs20.copy()
+        SOURCEs.remove(TARGET)
+        expLI(SOURCEs, TARGET)
 
     '''
     距離計算

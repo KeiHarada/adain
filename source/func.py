@@ -17,8 +17,10 @@ from sklearn.metrics import mean_squared_error
 
 # from my library
 from source.model import ADAIN
+from source.model import FNN
 from source.utility import Color
 from source.utility import MyDataset
+from source.utility import MyDataset_FNN
 from source.utility import get_dist_angle
 from source.utility import calc_correct
 from source.utility import get_aqi_series
@@ -586,7 +588,7 @@ def makeTestData_sampled(savePath, station_test, station_train):
     with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
         pickle.dump({"test": tdx}, fp)
 
-def objective(trial):
+def objective_ADAIN(trial):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -687,7 +689,7 @@ def objective(trial):
         for idx in range(validNum):
             selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
             validData = MyDataset(pickle.load(bz2.BZ2File(dataPath+selector, 'rb')))
-            rmse_i, accuracy_i = validate(model, validData)
+            rmse_i, accuracy_i = validate_ADAIN(model, validData)
             rmse.append(rmse_i)
             accuracy.append(accuracy_i)
         model.train()
@@ -721,7 +723,7 @@ def objective(trial):
 
     return rmse
 
-def validate(model, validData):
+def validate_ADAIN(model, validData):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -757,7 +759,7 @@ def validate(model, validData):
 
     return rmse, accuracy
 
-def evaluate(model_state_dict):
+def evaluate_ADAIN(model_state_dict):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -822,3 +824,339 @@ def evaluate(model_state_dict):
     print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
 
     return rmse, accuracy
+
+def objective_FNN(trial):
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # hyper parameters for tuning
+    # batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256, 512])
+    # epochs = trial.suggest_discrete_uniform("epochs", 1, 5, 1)
+    # lr = trial.suggest_loguniform("learning_rate", 1e-5, 1e-1)
+    # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
+
+    # hyper parameters for constance
+    batch_size = 1024
+    epochs = 200
+    lr = 0.001
+    wd = 0.0005
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
+    selector = "/train000.pkl.bz2"
+
+    # dataset
+    dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+    local_static, local_seq, others_static, others_seq, target = dataset
+    dataset = []
+    inputDim = 0
+    for i in range(len(target)):
+        trainData_i = local_static[i]
+        trainData_i += local_seq[-1]
+        for j in range(len(others_static)):
+            trainData_i += others_static[j]
+            trainData_i += others_seq[j][-1]
+        dataset.append(trainData_i)
+        inputDim = len(trainData_i)
+
+    # train and validation data
+    trainNum = math.floor(len(dataset))
+    random.shuffle(dataset)
+    trainData = MyDataset_FNN(dataset[:trainNum])
+    validData = MyDataset_FNN(dataset[trainNum:])
+    del dataset
+
+    # model
+    model = FNN(inputDim=inputDim)
+
+    # GPU or CPU
+    model = model.to(device)
+
+    # optimizer
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
+
+    # evaluation function
+    criterion = nn.MSELoss()
+
+    # initialize the early stopping object
+    patience = 50
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+
+    # log
+    logs = []
+
+    # start training
+    for step in range(int(epochs)):
+
+        epoch_loss = list()
+
+        for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
+
+            print("\t|- batch loss: ", end="")
+
+            # initialize graduation
+            optimizer.zero_grad()
+
+            # batch data
+            batch_feature, batch_target = batch_i
+
+            # to GPU
+            batch_feature = batch_feature.to(device)
+            batch_target = batch_target.to(device)
+
+            # predict
+            pred = model(batch_feature)
+
+            # calculate loss, back-propagate loss, and step optimizer
+            loss = criterion(pred, batch_target)
+            loss.backward()
+            optimizer.step()
+
+            # print a batch loss as RMSE
+            batch_loss = np.sqrt(loss.item())
+            print("%.10f" % (batch_loss))
+
+            # append batch loss to the list to calculate epoch loss
+            epoch_loss.append(batch_loss)
+
+        epoch_loss = np.average(epoch_loss)
+        print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
+
+        # validate
+        print("\t\t|- validation : ", end="")
+        model.eval()
+        rmse, accuracy = validate_FNN(model, validData)
+        model.train()
+
+        # calculate validation loss
+        log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
+        logs.append(log)
+        print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+
+        # early stopping
+        early_stopping(rmse, model)
+        if early_stopping.early_stop:
+            print("\t\tEarly stopping")
+            break
+
+    # load the last checkpoint after early stopping
+    model.load_state_dict(torch.load("tmp/checkpoint.pt"))
+    rmse = early_stopping.val_loss_min
+
+    # save model
+    trial_num = trial.number
+    with open("tmp/{}_model.pkl".format(str(trial_num).zfill(4)), "wb") as pl:
+        torch.save(model.state_dict(), pl)
+
+    # save logs
+    logs = pd.DataFrame(logs)
+    with open("tmp/{}_log.pkl".format(str(trial_num).zfill(4)), "wb") as pl:
+        pickle.dump(logs, pl)
+
+    return rmse
+
+def validate_FNN(model, validData):
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # for evaluation
+    result = []
+    result_label = []
+
+    batch_size = 2000
+
+    for batch_i in torch.utils.data.DataLoader(validData, batch_size=batch_size, shuffle=False):
+
+        # batch data
+        batch_feature, batch_target = batch_i
+
+        # to GPU
+        batch_feature = batch_feature.to(device)
+        batch_target = batch_target.to(device)
+
+        # predict
+        pred = model(batch_feature)
+        pred = pred.to("cpu")
+
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+        result += pred
+        result_label += batch_target
+
+    # evaluation score
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+
+    return rmse, accuracy
+
+def evaluate_FNN(model_state_dict):
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
+    # the number which the test dataset was divided into
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
+
+    # dataset
+    testData = []
+    inputDim = 0
+    for idx in range(testNum):
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = MyDataset(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
+        local_static, local_seq, others_static, others_seq, target = dataset
+        for i in range(len(target)):
+            testData_i = local_static[i]
+            testData_i += local_seq[-1]
+            for j in range(len(others_static)):
+                testData_i += others_static[j]
+                testData_i += others_seq[j][-1]
+            testData.append(testData_i)
+            inputDim = len(testData_i)
+    testData = MyDataset_FNN(testData)
+
+    # model
+    model = FNN(inputDim=inputDim)
+    model.load_state_dict(model_state_dict)
+    model = model.to(device)
+
+    # evaluate mode
+    model.eval()
+
+    # for evaluation
+    result = []
+    result_label = []
+
+    batch_size = 2000
+    iteration = 0
+
+    for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
+
+        # batch data
+        batch_feature, batch_target = batch_i
+
+        # to GPU
+        batch_feature = batch_feature.to(device)
+        batch_target = batch_target.to(device)
+
+        # predict
+        pred = model(batch_feature)
+        pred = pred.to("cpu")
+
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+        result += pred
+        result_label += batch_target
+
+        iteration += len(batch_target)
+        print("\t|- iteration %d / %d" % (iteration, len(testData)*testNum))
+
+    # evaluation score
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+    print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
+
+    return rmse, accuracy
+
+def evaluate_KNN(SOURCEs, TARGET, K):
+
+    # station data
+    target_station = pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)
+
+    for source in SOURCEs:
+        if source == SOURCEs[0]:
+            source_station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
+        else:
+            station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
+            source_station = pd.concat([source_station, station], ignore_index=True)
+
+    # aqi data
+    aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+
+    # for each station in target city
+    rmse = list()
+    for sid_t in list(target_station["sid"]):
+
+        # calculate distance from the local station
+        # local station
+        lat_local = float(target_station[target_station["sid"] == sid_t]["lat"])
+        lon_local = float(target_station[target_station["sid"] == sid_t]["lon"])
+
+        # distance
+        distance = dict()
+        for sid_s in list(source_station["sid"]):
+            lat = float(source_station[source_station["sid"] == sid_s]["lat"])
+            lon = float(source_station[source_station["sid"] == sid_s]["lon"])
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            distance[sid_s] = result["distance"]
+
+        # get K nearest neighbors
+        distance = sorted(distance.items(), key=lambda x: x[1])
+        nearest = list(map(lambda x: x[0], distance[:K]))
+
+        # agi data of source cities
+        aqiData_source = list()
+        for sid_s in nearest:
+            aqiData_source.append(aqiData[sid_s])
+
+        # aqi data of target city
+        aqiData_target = aqiData[sid_t]
+
+        # calculate RMSE
+        aqiData_source = np.mean(np.array(aqiData_source), axis=0)
+        rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
+
+    return np.mean(rmse)
+
+def evaluate_LI(SOURCEs, TARGET):
+
+    # station data
+    target_station = pd.read_csv("database/station/station_{}.csv".format(TARGET), dtype=object)
+
+    for source in SOURCEs:
+        if source == SOURCEs[0]:
+            source_station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
+        else:
+            station = pd.read_csv("database/station/station_{}.csv".format(source), dtype=object)
+            source_station = pd.concat([source_station, station], ignore_index=True)
+
+    # aqi data
+    aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+
+    # for each station in target city
+    rmse = list()
+    for sid_t in list(target_station["sid"]):
+
+        # calculate distance from the local station
+        # local station
+        lat_local = float(target_station[target_station["sid"] == sid_t]["lat"])
+        lon_local = float(target_station[target_station["sid"] == sid_t]["lon"])
+
+        # distance
+        distance = dict()
+        for sid_s in list(source_station["sid"]):
+            lat = float(source_station[source_station["sid"] == sid_s]["lat"])
+            lon = float(source_station[source_station["sid"] == sid_s]["lon"])
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            distance[sid_s] = 1 / result["distance"]
+
+        # calculate population
+        dist_sum = sum(list(distance.values()))
+        distance = {sid_s: distance[sid_s]/dist_sum for sid_s in list(distance.keys())}
+
+        # agi data of source cities
+        aqiData_source = list()
+        for sid_s in list(source_station["sid"]):
+            aqiData_source.append(distance[sid_s] * aqiData[sid_s])
+
+        # aqi data of target city
+        aqiData_target = aqiData[sid_t]
+
+        # calculate RMSE
+        aqiData_source = np.sum(np.array(aqiData_source), axis=0)
+        rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
+
+    return np.mean(rmse)

@@ -2,6 +2,51 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class KNN():
+    pass
+
+class LI():
+    pass
+
+# FNN
+class FNN(nn.Module):
+    def __init__(self, inputDim):
+        super(FNN, self).__init__()
+
+        # CPU or GPU
+        if torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+
+        # drop out layer
+        self.drop = nn.Dropout2d(p=0.3)
+
+        # the neuron size of hidden layer
+        self.hidden = 200
+
+        # NN layer
+        self.fc1 = nn.Linear(inputDim, self.hidden)
+        self.fc2 = nn.Linear(self.hidden, self.hidden)
+        self.fc3 = nn.Linear(self.hidden, self.hidden)
+        self.output = nn.Linear(self.hidden, 1)
+        nn.init.uniform_(self.fc1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc2.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc3.weight, -0.1, 0.1)
+        nn.init.uniform_(self.output.weight, -0.1, 0.1)
+        self.fc1.to(device)
+        self.fc2.to(device)
+        self.fc3.to(device)
+        self.output.to(device)
+
+    def forward(self, x):
+
+        y = F.relu(self.fc1(x))
+        y = F.relu(self.fc2(y))
+        y = self.drop(y)
+        y = F.relu(self.fc3(y))
+        return self.output(y)
+
 # ADAIN
 class ADAIN(nn.Module):
 
