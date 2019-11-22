@@ -405,38 +405,27 @@ def expKNN(SOURCEs, TARGET):
     KNN: 距離の近い K このステーションの平均
     '''
 
-    # to evaluate
-    rmse_list = list()
-    accuracy_list = list()
+    start = time.time()
+    print("----------------")
 
-    for loop in range(1, 4):
-        start = time.time()
-        print("----------------")
+    # evaluate
+    print("* TARGET: {}".format(TARGET))
+    rmse, accuracy = evaluate_KNN(SOURCEs, TARGET, K=3)
 
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate_KNN(SOURCEs, TARGET, K=3)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
-
-        # time
-        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+    # time
+    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19KNN.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        for loop in range(len(rmse_list)):
-            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("rmse,{}\n".format(str(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        for loop in range(len(accuracy_list)):
-            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+        result.write("accuracy,{}\n".format(str(accuracy)))
 
 def expLI(SOURCEs, TARGET):
 
@@ -444,38 +433,27 @@ def expLI(SOURCEs, TARGET):
     LI: 距離の逆数の比で重み付け
     '''
 
-    # to evaluate
-    rmse_list = list()
-    accuracy_list = list()
+    start = time.time()
+    print("----------------")
 
-    for loop in range(1, 4):
-        start = time.time()
-        print("----------------")
+    # evaluate
+    print("* TARGET: {}".format(TARGET))
+    rmse, accuracy = evaluate_LI(SOURCEs, TARGET)
 
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate_LI(SOURCEs, TARGET)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
-
-        # time
-        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+    # time
+    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19LI.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        for loop in range(len(rmse_list)):
-            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("rmse,{}\n".format(str(rmse)))
         result.write("--------------------------------------------\n")
         result.write("Accuracy\n")
         result.write("----------\n")
         result.write("city,{}\n".format(TARGET))
-        for loop in range(len(accuracy_list)):
-            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+        result.write("accuracy,{}\n".format(str(accuracy)))
 
 def exp5cities(TRIAL, TARGET):
 
