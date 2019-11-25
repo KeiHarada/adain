@@ -873,8 +873,8 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["BeiJing"]
-    cityTest19(CITIEs20, CITIEs4)
+    #CITIEs4 = ["BeiJing"]
+    #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
     #city1train(CITIEs20, CITIEs4)
@@ -916,6 +916,7 @@ if __name__ == "__main__":
     Experiment4:
     距離の近い都市で訓練したモデルの性能検証実験
     '''
+    # CITIEs4 = ["GuangZhou"]
     # for TARGET in CITIEs4:
     #     exp5cities(TRIAL, TARGET)
 
@@ -933,8 +934,6 @@ if __name__ == "__main__":
     比較手法 KNN
     '''
     # for TARGET in CITIEs4:
-    #     SOURCEs = CITIEs20.copy()
-    #     SOURCEs.remove(TARGET)
     #     expKNN(TARGET)
 
     '''
@@ -942,8 +941,6 @@ if __name__ == "__main__":
     比較手法　LI
     '''
     # for TARGET in CITIEs4:
-    #     SOURCEs = CITIEs20.copy()
-    #     SOURCEs.remove(TARGET)
     #     expLI(TARGET)
 
     '''

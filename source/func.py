@@ -1004,6 +1004,7 @@ def evaluate_FNN(model_state_dict):
     labelData = list()
     inputDim = 0
     for idx in range(testNum):
+        
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
         local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
         for i in range(len(target)):
