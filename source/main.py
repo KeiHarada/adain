@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 # from my library
 from source.func import makeDataset
+from source.func import makeCityData
 from source.func import makeTrainData
 from source.func import makeTestData
 from source.func import makeTestData_sampled
@@ -831,6 +832,26 @@ def cityTest19(CITIEs20, CITIEs4):
             savePath = "dataset/{}/test{}".format(dataset, str(loop))
             makeTestData_sampled(savePath, station_test, station_train)
 
+def cityTest19_cityData(CITIEs4):
+
+    print("trainNum: 95")
+    print("testNum: 5")
+    print("--------------")
+
+    for TARGET in CITIEs4:
+
+        print("*---TARGET: {}".format(TARGET))
+
+        for loop in range(1, 4):
+
+            print("* Shuffle Loop: {}".format(str(loop)))
+
+            # dataset path
+            trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
+            testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+
+            makeCityData(trainPath, testPath)
+
 if __name__ == "__main__":
 
     device = "gpu" if torch.cuda.is_available() else "cpu"
@@ -873,7 +894,8 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    #CITIEs4 = ["BeiJing"]
+    CITIEs4 = ["BeiJing"]
+    cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
