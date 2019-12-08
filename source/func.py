@@ -243,6 +243,134 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
 
     print(Color.GREEN + "OK" + Color.END)
 
+def makeCityData(trainPath, testPath):
+
+    # static data
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+
+    # station data
+    stationData = pd.read_csv("rawdata/zheng2015/station.csv", dtype=object)
+
+    # district data
+    districtData = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
+
+    # city data
+    cityData = pd.read_csv("rawdata/zheng2015/city.csv", dtype=object)
+
+    # the number of data files
+    trainNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["train"]
+    for idx in range(trainNum):
+        selector = "/train_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
+        dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
+
+        tmp = [k for k, v in staticData.items() if v == local_static][0]
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+        local_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+        local_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+
+        geoVect = list()
+        cidVect = list()
+        for others_static_i in others_static:
+            others_static_i = others_static_i[:-2]
+            tmp = [k for k, v in staticData.items() if v == others_static_i][0]
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+            cidVect.append(tmp)
+            other_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+            other_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+            tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
+            geoVect.append([tmp["distance"], tmp["angle"]])
+
+        geoVect = np.array(geoVect)
+        minimum = geoVect.min(axis=0, keepdims=True)
+        maximum = geoVect.max(axis=0, keepdims=True)
+        geoVect = (geoVect - minimum) / (maximum - minimum)
+        geoVect = list(map(lambda x: list(x), geoVect))
+
+        out_set = ([geoVect]*dataNum, [cidVect]*dataNum)
+
+        with bz2.BZ2File("{}/train_city_{}.pkl.bz2".format(trainPath, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save train_city_{}.pkl.bz2".format(str(idx).zfill(3)))
+
+    # the number of data files
+    validNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["valid"]
+    for idx in range(validNum):
+        selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
+        dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
+
+        tmp = [k for k, v in staticData.items() if v == local_static][0]
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+        local_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+        local_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+
+        geoVect = list()
+        cidVect = list()
+        for others_static_i in others_static:
+            others_static_i = others_static_i[:-2]
+            tmp = [k for k, v in staticData.items() if v == others_static_i][0]
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+            cidVect.append(tmp)
+            other_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+            other_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+            tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
+            geoVect.append([tmp["distance"], tmp["angle"]])
+
+        geoVect = np.array(geoVect)
+        minimum = geoVect.min(axis=0, keepdims=True)
+        maximum = geoVect.max(axis=0, keepdims=True)
+        geoVect = (geoVect - minimum) / (maximum - minimum)
+        geoVect = list(map(lambda x: list(x), geoVect))
+
+        out_set = ([geoVect] * dataNum, [cidVect] * dataNum)
+
+        with bz2.BZ2File("{}/valid_city_{}.pkl.bz2".format(trainPath, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save valid_city_{}.pkl.bz2".format(str(idx).zfill(3)))
+
+    # the number of data files
+    testNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["test"]
+    for idx in range(testNum):
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
+        dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
+
+        tmp = [k for k, v in staticData.items() if v == local_static][0]
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+        local_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+        local_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+
+        geoVect = list()
+        cidVect = list()
+        for others_static_i in others_static:
+            others_static_i = others_static_i[:-2]
+            tmp = [k for k, v in staticData.items() if v == others_static_i][0]
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"]
+            cidVect.append(tmp)
+            other_lat = cityData[cityData["city_id"] == tmp]["latitude"]
+            other_lon = cityData[cityData["city_id"] == tmp]["longitude"]
+            tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
+            geoVect.append([tmp["distance"], tmp["angle"]])
+
+        geoVect = np.array(geoVect)
+        minimum = geoVect.min(axis=0, keepdims=True)
+        maximum = geoVect.max(axis=0, keepdims=True)
+        geoVect = (geoVect - minimum) / (maximum - minimum)
+        geoVect = list(map(lambda x: list(x), geoVect))
+
+        out_set = ([geoVect] * dataNum, [cidVect] * dataNum)
+
+        with bz2.BZ2File("{}/test_city_{}.pkl.bz2".format(trainPath, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save test_city_{}.pkl.bz2".format(str(idx).zfill(3)))
+
 def makeTrainData(savePath, station_train):
 
     '''
