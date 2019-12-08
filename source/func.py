@@ -281,7 +281,7 @@ def makeCityData(trainPath, testPath):
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"])
             tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
-            geoVect.append([tmp["distance"], tmp["angle"]])
+            geoVect.append([tmp["distance"], tmp["azimuth1"]])
 
         geoVect = np.array(geoVect)
         minimum = geoVect.min(axis=0, keepdims=True)
@@ -319,7 +319,7 @@ def makeCityData(trainPath, testPath):
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"])
             tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
-            geoVect.append([tmp["distance"], tmp["angle"]])
+            geoVect.append([tmp["distance"], tmp["azimuth1"]])
 
         geoVect = np.array(geoVect)
         minimum = geoVect.min(axis=0, keepdims=True)
@@ -357,7 +357,7 @@ def makeCityData(trainPath, testPath):
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"])
             tmp = get_dist_angle(local_lat, local_lon, other_lat, other_lon)
-            geoVect.append([tmp["distance"], tmp["angle"]])
+            geoVect.append([tmp["distance"], tmp["azimuth1"]])
 
         geoVect = np.array(geoVect)
         minimum = geoVect.min(axis=0, keepdims=True)
