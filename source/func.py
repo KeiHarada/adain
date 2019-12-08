@@ -265,8 +265,8 @@ def makeCityData(trainPath, testPath):
         dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
 
         tmp = [k for k, v in staticData.items() if v == local_static][0]
-        tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-        tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
         local_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
         local_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
 
@@ -275,8 +275,8 @@ def makeCityData(trainPath, testPath):
         for others_static_i in others_static:
             others_static_i = others_static_i[:-2]
             tmp = [k for k, v in staticData.items() if v == others_static_i][0]
-            tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-            tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
             cidVect.append(tmp)
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
@@ -303,8 +303,8 @@ def makeCityData(trainPath, testPath):
         dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
 
         tmp = [k for k, v in staticData.items() if v == local_static][0]
-        tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-        tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
         local_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
         local_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
 
@@ -313,8 +313,8 @@ def makeCityData(trainPath, testPath):
         for others_static_i in others_static:
             others_static_i = others_static_i[:-2]
             tmp = [k for k, v in staticData.items() if v == others_static_i][0]
-            tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-            tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
             cidVect.append(tmp)
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
@@ -341,8 +341,8 @@ def makeCityData(trainPath, testPath):
         dataNum, local_static, others_static = len(dataset[0]), dataset[0][0], dataset[2][0]
 
         tmp = [k for k, v in staticData.items() if v == local_static][0]
-        tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-        tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+        tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+        tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
         local_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
         local_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
 
@@ -351,8 +351,8 @@ def makeCityData(trainPath, testPath):
         for others_static_i in others_static:
             others_static_i = others_static_i[:-2]
             tmp = [k for k, v in staticData.items() if v == others_static_i][0]
-            tmp = str(stationData[stationData["station_id"] == tmp]["district_id"][0])
-            tmp = str(districtData[districtData["district_id"] == tmp]["city_id"][0])
+            tmp = stationData[stationData["station_id"] == tmp]["district_id"][0]
+            tmp = districtData[districtData["district_id"] == tmp]["city_id"][0]
             cidVect.append(tmp)
             other_lat = float(cityData[cityData["city_id"] == tmp]["latitude"][0])
             other_lon = float(cityData[cityData["city_id"] == tmp]["longitude"][0])
