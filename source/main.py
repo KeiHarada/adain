@@ -860,24 +860,36 @@ def analysisKNN(TARGET):
 
     from source.func import analysis_KNN
 
-    # to evaluate
+    loop = 1
+    start = time.time()
+    print("----------------")
+    print("* TARGET: {}{}".format(TARGET, str(loop)))
+
+    # save dataset path
+    with open("tmp/testPath.pkl", "wb") as fp:
+        pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+
+    # analysis
+    analysis_KNN(K=3)
+
+    # evaluate
     rmse_list = list()
     accuracy_list = list()
+    for k in range(1, 96):
+        rmse, accuracy = evaluate_KNN(K=k)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
 
-    for loop in range(1, 2):
-        start = time.time()
-        print("----------------")
+    # time
+    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
-        # save dataset path
-        with open("tmp/testPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test5/test{}".format(TARGET, str(loop)), fp)
-
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        analysis_KNN(K=3)
-
-        # time
-        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+    with open("result/{}Test19KNN_analysis.csv".format(TARGET), "w") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("K,RMSE\n")
+        for k in range(1, 96):
+            result.write("{},{}\n".format(str(k), str(rmse_list[k-1])))
 
 if __name__ == "__main__":
 
@@ -981,16 +993,16 @@ if __name__ == "__main__":
     Experiment6:
     比較手法 KNN
     '''
-    for TARGET in CITIEs4:
-        expKNN(TARGET)
-    #analysisKNN("BeiJing")
+    # for TARGET in CITIEs4:
+    #     expKNN(TARGET)
+    analysisKNN("BeiJing")
 
     '''
     Experiment7:
     比較手法　LI
     '''
-    for TARGET in CITIEs4:
-        expLI(TARGET)
+    # for TARGET in CITIEs4:
+    #     expLI(TARGET)
 
     '''
     Experiment8:

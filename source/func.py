@@ -1281,8 +1281,7 @@ def analysis_KNN(K):
     testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
     # evaluate
-    #for idx in range(testNum):
-    for idx in range(0, testNum, 25):
+    for idx in range(testNum):
 
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
         dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
