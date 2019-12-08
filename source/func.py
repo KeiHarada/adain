@@ -1237,8 +1237,7 @@ def evaluate_KNN(K):
         for source_station_i in source_station:
             lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
             lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
-            result = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)
-            distance[source_station_i] = result["distance"]
+            distance[source_station_i] = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)["distance"]
 
         # get K nearest neighbors
         distance = sorted(distance.items(), key=lambda x: x[1])
@@ -1385,8 +1384,7 @@ def evaluate_LI():
         for source_station_i in source_station:
             lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
             lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
-            result = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)
-            distance[source_station_i] = 1 / result["distance"]
+            distance[source_station_i] = 1 / get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)["distance"]
 
         # calculate population
         dist_sum = sum(list(distance.values()))
