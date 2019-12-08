@@ -995,7 +995,7 @@ if __name__ == "__main__":
     '''
     # for TARGET in CITIEs4:
     #     expKNN(TARGET)
-    analysisKNN("BeiJing")
+    # analysisKNN("BeiJing")
 
     '''
     Experiment7:

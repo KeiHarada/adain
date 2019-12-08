@@ -367,7 +367,7 @@ def makeCityData(trainPath, testPath):
 
         out_set = ([geoVect] * dataNum, [cidVect] * dataNum)
 
-        with bz2.BZ2File("{}/test_city_{}.pkl.bz2".format(trainPath, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+        with bz2.BZ2File("{}/test_city_{}.pkl.bz2".format(testPath, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
             print("* save test_city_{}.pkl.bz2".format(str(idx).zfill(3)))
 
