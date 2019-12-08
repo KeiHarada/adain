@@ -755,7 +755,7 @@ def objective_ADAIN(trial):
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     # log
-    logs = []
+    logs = list()
 
     # dataset path
     dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
@@ -856,8 +856,8 @@ def validate_ADAIN(model, validData):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # for evaluation
-    result = []
-    result_label = []
+    result = list()
+    result_label = list()
 
     batch_size = 2000
 
@@ -907,8 +907,8 @@ def evaluate_ADAIN(model_state_dict):
     model.eval()
 
     # for evaluation
-    result = []
-    result_label = []
+    result = list()
+    result_label = list()
 
     # dataset path
     dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
@@ -1011,7 +1011,7 @@ def objective_FNN(trial):
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     # log
-    logs = []
+    logs = list()
 
     # start training
     for step in range(int(epochs)):
@@ -1088,8 +1088,8 @@ def validate_FNN(model, validData):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # for evaluation
-    result = []
-    result_label = []
+    result = list()
+    result_label = list()
 
     batch_size = 2000
 
@@ -1156,8 +1156,8 @@ def evaluate_FNN(model_state_dict):
     model.eval()
 
     # for evaluation
-    result = []
-    result_label = []
+    result = list()
+    result_label = list()
 
     batch_size = 2000
     iteration = 0
@@ -1209,9 +1209,9 @@ def evaluate_KNN(K):
     # the number which the test dataset was divided into
     testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
-    # evaluate
-    rmse = list()
-    accuracy = list()
+    # for evaluation
+    result = list()
+    result_label = list()
     for idx in range(testNum):
 
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
@@ -1254,10 +1254,89 @@ def evaluate_KNN(K):
 
         # evaluate
         aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
-        rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
-        accuracy.append(calc_correct(aqiData_source, aqiData_target) / len(aqiData_target))
+        result += aqiData_source
+        result_label += aqiData_target
 
-    return np.mean(rmse), np.mean(accuracy)
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+
+    return rmse, accuracy
+
+def analysis_KNN(K):
+
+    # aqi data
+    aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+    for k, v in aqiData.items():
+        aqiData[k] = list(map(lambda x: x[0], v))
+
+    # static data
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+
+    # station data
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
+    # the number which the test dataset was divided into
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
+
+    # evaluate
+    #for idx in range(testNum):
+    for idx in range(0, testNum, 25):
+
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+        local_static, others_static = dataset[0][0], dataset[2][0]
+
+        # target station
+        target_station = [k for k, v in staticData.items() if v == local_static][0]
+
+        # source stations
+        source_station = list()
+        for staticData_i in others_static:
+            staticData_i = staticData_i[:-2]
+            source_station.append([k for k, v in staticData.items() if v == staticData_i][0])
+
+        # calculate distance from the local station
+        # local station
+        lat_target = float(stationData[stationData["sid"] == target_station]["lat"])
+        lon_target = float(stationData[stationData["sid"] == target_station]["lon"])
+
+        # distance
+        distance = dict()
+        for source_station_i in source_station:
+            lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
+            lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
+            result = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)
+            distance[source_station_i] = result["distance"]
+
+        # get K nearest neighbors
+        distance = sorted(distance.items(), key=lambda x: x[1])
+        nearest = list(map(lambda x: x[0], distance[:K]))
+
+        # agi data of source cities
+        aqiData_source = list()
+        for source_station_i in nearest:
+            aqiData_source.append(aqiData[source_station_i])
+
+        # aqi data of target city
+        aqiData_target = aqiData[target_station]
+
+        # evaluate
+        aqiData_source_mean = list(np.mean(np.array(aqiData_source), axis=0))
+        rmse = np.sqrt(mean_squared_error(aqiData_target, aqiData_source_mean))
+
+        with open("result/K{}_idx{}.csv".format(str(K), str(idx).zfill(3)), "w") as outfile:
+            outfile.write("RMSE={}\n".format(str(rmse)))
+            outfile.write("{},mean,{}\n".format(",".join(nearest), target_station))
+            for t in range(len(aqiData_target)):
+                tmp = list()
+                for s in range(len(nearest)):
+                    tmp.append(str(aqiData_source[s][t]))
+                tmp.append(str(aqiData_source_mean[t]))
+                tmp.append(str(aqiData_target[t]))
+                outfile.write("{}\n".format(",".join(tmp)))
 
 def evaluate_LI():
 
@@ -1278,9 +1357,9 @@ def evaluate_LI():
     # the number which the test dataset was divided into
     testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
-    # evaluate
-    rmse = list()
-    accuracy = list()
+    # for evaluation
+    result = list()
+    result_label = list()
     for idx in range(testNum):
 
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
@@ -1323,7 +1402,10 @@ def evaluate_LI():
 
         # evaluate
         aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
-        rmse.append(np.sqrt(mean_squared_error(aqiData_target, aqiData_source)))
-        accuracy.append(calc_correct(aqiData_source, aqiData_target) / len(aqiData_target))
+        result += aqiData_source
+        result_label += aqiData_target
 
-    return np.mean(rmse), np.mean(accuracy)
+    rmse = np.sqrt(mean_squared_error(result, result_label))
+    accuracy = calc_correct(result, result_label) / len(result)
+
+    return rmse, accuracy

@@ -852,6 +852,33 @@ def cityTest19_cityData(CITIEs4):
 
             makeCityData(trainPath, testPath)
 
+def analysisKNN(TARGET):
+
+    '''
+    KNN: 距離の近い K このステーションの平
+    '''
+
+    from source.func import analysis_KNN
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for loop in range(1, 2):
+        start = time.time()
+        print("----------------")
+
+        # save dataset path
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test5/test{}".format(TARGET, str(loop)), fp)
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        analysis_KNN(K=3)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
 if __name__ == "__main__":
 
     device = "gpu" if torch.cuda.is_available() else "cpu"
@@ -894,8 +921,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["GuangZhou"]
-    cityTest19_cityData(CITIEs4)
+    #cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -955,15 +981,16 @@ if __name__ == "__main__":
     Experiment6:
     比較手法 KNN
     '''
-    # for TARGET in CITIEs4:
-    #     expKNN(TARGET)
+    for TARGET in CITIEs4:
+        expKNN(TARGET)
+    #analysisKNN("BeiJing")
 
     '''
     Experiment7:
     比較手法　LI
     '''
-    # for TARGET in CITIEs4:
-    #     expLI(TARGET)
+    for TARGET in CITIEs4:
+        expLI(TARGET)
 
     '''
     Experiment8:
