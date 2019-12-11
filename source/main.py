@@ -19,8 +19,10 @@ from source.func import makeTrainData
 from source.func import makeTestData
 from source.func import makeTestData_sampled
 from source.func import objective_ADAIN
+from source.func import objective_HARADA
 from source.func import objective_FNN
 from source.func import evaluate_ADAIN
+from source.func import evaluate_HARADA
 from source.func import evaluate_FNN
 from source.func import evaluate_KNN
 from source.func import evaluate_LI
@@ -323,6 +325,68 @@ def exp19cities(TRIAL, TARGET):
         print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
     with open("result/{}Test19.csv".format(TARGET), "w") as result:
+        result.write("--------------------------------------------\n")
+        result.write("RMSE\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(rmse_list)):
+            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+        result.write("--------------------------------------------\n")
+        result.write("Accuracy\n")
+        result.write("----------\n")
+        result.write("city,{}\n".format(TARGET))
+        for loop in range(len(accuracy_list)):
+            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+
+def expProposal(TRIAL, TARGET):
+
+    '''
+    提案手法
+    '''
+
+    # to evaluate
+    rmse_list = list()
+    accuracy_list = list()
+
+    for loop in range(1, 4):
+        start = time.time()
+        print("----------------")
+        print("* SOURCE: All{}".format(str(loop)))
+
+        # save dataset path
+        with open("tmp/trainPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19_city/train{}".format(TARGET, str(loop)), fp)
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
+
+        # training & parameter tuning by optuna
+        # -- activate function, optimizer, eopchs, batch size
+        study = optuna.create_study()
+        study.optimize(objective_HARADA, n_trials=TRIAL)
+
+        # save best model
+        model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
+        pickle.dump(model_state_dict, open("model/{}Test19_city_{}.pkl".format(TARGET, str(loop)), "wb"))
+
+        # save train log
+        log = pickle.load(open("tmp/{}_log.pkl".format(str(study.best_trial.number).zfill(4)), "rb"))
+        log.to_csv("log/{}Test19_city_{}.csv".format(TARGET, str(loop)), index=False)
+
+        # load best model
+        model_state_dict = pickle.load(open("model/{}Test19_city_{}.pkl".format(TARGET, str(loop)), "rb"))
+
+        # evaluate
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
+        rmse, accuracy = evaluate_HARADA(model_state_dict)
+        rmse_list.append(rmse)
+        accuracy_list.append(accuracy)
+
+        # time
+        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
+    with open("result/{}Test19_city.csv".format(TARGET), "w") as result:
         result.write("--------------------------------------------\n")
         result.write("RMSE\n")
         result.write("----------\n")
@@ -843,14 +907,15 @@ def cityTest19_cityData(CITIEs4):
         print("*---TARGET: {}".format(TARGET))
 
         for loop in range(1, 4):
-
             print("* Shuffle Loop: {}".format(str(loop)))
 
             # dataset path
             trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
             testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+            savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+            savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
 
-            makeCityData(trainPath, testPath)
+            makeCityData(trainPath, testPath, savePath_train, savePath_test)
 
 def analysisKNN(TARGET):
 
@@ -870,7 +935,8 @@ def analysisKNN(TARGET):
         pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
 
     # analysis
-    analysis_KNN(K=3)
+    analysis_KNN(K=95)
+    exit()
 
     # evaluate
     rmse_list = list()
@@ -908,26 +974,26 @@ if __name__ == "__main__":
     20 cities
     '''
     # 気象データが全部Nullの都市は無視
-    CITIEs20 = list()
-    for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
-        with open("database/station/station_"+city+".csv", "r") as infile:
-            infile = infile.readlines()[1:] # 1行目を無視
-            if len(infile) >= 5:
-                CITIEs20.append(city)
-    CITIEs20.remove("JiNan")
-    CITIEs20.remove("HeYuan")
-    CITIEs20.remove("JieYang")
-    CITIEs20.remove("ShaoGuan")
-    CITIEs20.remove("DaTong")
-    CITIEs20.remove("DeZhou")
-    CITIEs20.remove("BinZhou")
-    CITIEs20.remove("DongYing")
-    CITIEs20.remove("ChenZhou")
+    # CITIEs20 = list()
+    # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
+    #     with open("database/station/station_"+city+".csv", "r") as infile:
+    #         infile = infile.readlines()[1:] # 1行目を無視
+    #         if len(infile) >= 5:
+    #             CITIEs20.append(city)
+    # CITIEs20.remove("JiNan")
+    # CITIEs20.remove("HeYuan")
+    # CITIEs20.remove("JieYang")
+    # CITIEs20.remove("ShaoGuan")
+    # CITIEs20.remove("DaTong")
+    # CITIEs20.remove("DeZhou")
+    # CITIEs20.remove("BinZhou")
+    # CITIEs20.remove("DongYing")
+    # CITIEs20.remove("ChenZhou")
 
     '''
     4 cities
     '''
-    CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    # CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
 
     '''
     create dataset
@@ -995,7 +1061,7 @@ if __name__ == "__main__":
     '''
     # for TARGET in CITIEs4:
     #     expKNN(TARGET)
-    # analysisKNN("BeiJing")
+    #analysisKNN("BeiJing")
 
     '''
     Experiment7:
@@ -1010,6 +1076,14 @@ if __name__ == "__main__":
     '''
     # for TARGET in CITIEs4:
     #     expFNN(TRIAL, TARGET)
+
+    '''
+    Experiment9:
+    提案手法
+    '''
+    CITIEs4 =  ["BeiJing"]
+    for TARGET in CITIEs4:
+        exp19cities(TRIAL, TARGET)
 
     '''
     距離計算

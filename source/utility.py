@@ -248,7 +248,7 @@ class MMD:
 
         return subtotal
 
-class MyDataset(torch.utils.data.Dataset):
+class MyDataset_ADAIN(torch.utils.data.Dataset):
 
     def __init__(self, data):
         self.local_static = data[0]
@@ -270,6 +270,31 @@ class MyDataset(torch.utils.data.Dataset):
         out_target = torch.tensor(self.target[idx])
 
         return out_local_static, out_local_seq, out_others_static, out_others_seq, out_target
+
+class MyDataset_HARADA(torch.utils.data.Dataset):
+
+    def __init__(self, data):
+        self.local_static = data[0]
+        self.local_seq = data[1]
+        self.others_static = data[2]
+        self.others_seq = data[3]
+        self.others_city = data[4]
+        self.target = data[5]
+        self.data_num = len(data[4])
+
+    def __len__(self):
+        return self.data_num
+
+    def __getitem__(self, idx):
+
+        out_local_static = torch.tensor(self.local_static[idx])
+        out_local_seq = torch.tensor(self.local_seq[idx])
+        out_others_static = torch.tensor(self.others_static[idx])
+        out_others_seq = torch.tensor(self.others_seq[idx])
+        out_others_city = torch.tensor(self.others_city[idx])
+        out_target = torch.tensor(self.target[idx])
+
+        return out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target
 
 class MyDataset_FNN(torch.utils.data.Dataset):
 
