@@ -12,6 +12,7 @@ import bz2
 import numpy as np
 import pandas as pd
 from torch import nn
+from geomloss import SamplesLoss
 from torch import optim
 from sklearn.metrics import mean_squared_error
 
@@ -256,11 +257,11 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
     districtData = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
     cityData = pd.read_csv("rawdata/zheng2015/city.csv", dtype=object)
 
-    # an id of save file
-    city_id = -1
-    station_id = dict()
+    # id of a save file
     dataNum = 0
-    cid_local = 0
+    city_counter = -1
+    city_id = dict()
+    station_id = dict()
 
     # the number of data files
     trainNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["train"]
@@ -333,15 +334,16 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
         if cid_local in station_id.keys():
             station_id[cid_local] += 1
         else:
-            city_id += 1
+            city_counter += 1
+            city_id[cid_local] = city_counter
             station_id[cid_local] = 0
 
         with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
-                                                        str(city_id).zfill(3),
+                                                        str(city_id[cid_local]).zfill(3),
                                                         str(station_id[cid_local]).zfill(3)),
                                                         'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(idx).zfill(3)))
+        print("* save train_{}{}.pkl.bz2".format(str(city_id[cid_local]).zfill(3), str(station_id[cid_local]).zfill(3)))
 
     # the number of data files
     validNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["valid"]
@@ -412,16 +414,18 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
         if cid_local in station_id.keys():
             station_id[cid_local] += 1
         else:
+            city_counter += 1
+            city_id[cid_local] = city_counter
             station_id[cid_local] = 0
 
         out_set = ([local_static] * dataNum, local_seq, [staticVect] * dataNum, seqVect, [geoVect] * dataNum, target)
 
         with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
-                                                        str(city_id).zfill(3),
+                                                        str(city_id[cid_local]).zfill(3),
                                                         str(station_id[cid_local]).zfill(3)),
                                                         'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save train_{}{}.pkl.bz2".format(str(city_id).zfill(2), str(idx).zfill(2)))
+        print("* save train_{}{}.pkl.bz2".format(str(city_id[cid_local]).zfill(3), str(station_id[cid_local]).zfill(3)))
 
     # the number of data files
     testNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["test"]
@@ -496,17 +500,18 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
 
         with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save test_{}.pkl.bz2".format(str(idx).zfill(3)))
+        print("* save test_{}.pkl.bz2".format(str(idx).zfill(3)))
 
         out_set = ([local_static]*dataNum, local_seq)
         with bz2.BZ2File("{}/mmd_{}.pkl.bz2".format(savePath_train, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save mmd_{}.pkl.bz2".format(str(idx).zfill(3)))
+        print("* save mmd_{}.pkl.bz2".format(str(idx).zfill(3)))
 
+    tmp = {"station": max(list(station_id.values()))+1, "city": max(list(city_id.values()))+1, "time": dataNum}
     with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
-        pickle.dump({"station": station_id[cid_local]+1, "city": city_id+1, "time": dataNum}, fp)
+        pickle.dump(tmp, fp)
     with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
-        pickle.dump({"station": station_id[cid_local]+1, "city": city_id+1, "time": dataNum}, fp)
+        pickle.dump(tmp, fp)
 
 def makeTrainData(savePath, station_train):
 
@@ -1135,7 +1140,7 @@ def objective_HARADA(trial):
     # loss function
     criterion_moe = nn.MSELoss()
     criterion_mtl = nn.MSELoss()
-    criterion_mmd = nn.MSELoss()
+    criterion_mmd = SamplesLoss("gaussian")
 
     # initialize the early stopping object
     patience = 50
