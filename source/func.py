@@ -1168,7 +1168,7 @@ def objective_HARADA(trial):
                 batch_target = list()
 
                 for data_selector in range(stationNum):
-                    selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(2), str(data_selector).zfill(2))
+                    selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
                     trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
                     trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batch_id]
 
@@ -1209,7 +1209,7 @@ def objective_HARADA(trial):
             batch_local_seq = list()
 
             for data_selector in range(stationNum):
-                selectPath = "/mmd_{}.pkl.bz2".format(str(data_selector).zfill(2))
+                selectPath = "/mmd_{}.pkl.bz2".format(str(data_selector).zfill(3))
                 mmdData = MyDataset_MMD(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
                 mmdData = torch.utils.data.DataLoader(mmdData, batch_size=batch_size, shuffle=False)[batch_id]
 
