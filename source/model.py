@@ -311,6 +311,23 @@ class HARADA(nn.Module):
 
         return (hidden0, cell0)
 
+    def encode(self, x_local_static, x_local_seq):
+        # static layer
+        y_local_static = F.relu(self.fc_static_local(x_local_static))
+        y_local_static = self.drop_static_local(y_local_static)
+
+        # lstm layer
+        y_local_seq, (hidden, cell) = self.lstm1_local(x_local_seq, self.initial_hidden(len(x_local_seq)))
+        y_local_seq, (hidden, cell) = self.lstm2_local(y_local_seq, self.initial_hidden(len(x_local_seq)))
+        y_local_seq = self.drop_lstm_local(hidden[0]) # 最後の出力が欲しいのでhiddenを使う
+
+        # joint layer
+        y_local = F.relu(self.fc_joint1_local(torch.cat([y_local_static, y_local_seq], dim=1)))
+        y_local = F.relu(self.fc_joint2_local(y_local))
+        mmd = y_local
+
+        return mmd
+
     def forward(self, x_local_static, x_local_seq, x_others_static, x_others_seq, x_others_city):
         '''
         :param x_local_static: スタティック特徴量 (local)
@@ -321,9 +338,8 @@ class HARADA(nn.Module):
         :return: aqiの予測値
         '''
 
-        # for adversarial loss
-        mmd_source = list()
-        mmd_target = list()
+        # loss
+        y_mtl = list()
 
         # |- local
         # static layer
@@ -338,12 +354,11 @@ class HARADA(nn.Module):
         # joint layer
         y_local = F.relu(self.fc_joint1_local(torch.cat([y_local_static, y_local_seq], dim=1)))
         y_local = F.relu(self.fc_joint2_local(y_local))
-        mmd_target.append(y_local)
+        mmd = y_local
         y_local = self.drop_joint_local(y_local)
 
         # |- others
         attention_city = list()
-        y = list()
 
         # slicing by the number of cities
         x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, self.cityNum, dim=1)]
@@ -376,7 +391,6 @@ class HARADA(nn.Module):
                 # joint layer
                 y_others_ij = F.relu(self.fc_joint1_others(torch.cat([y_others_static_ij, y_others_seq_ij], dim=1)))
                 y_others_ij = F.relu(self.fc_joint2_others(y_others_ij))
-                mmd_source.append(y_others_ij)
                 y_others_ij = self.drop_joint_others(y_others_ij)
                 y_others_i.append(y_others_ij)
 
@@ -406,12 +420,12 @@ class HARADA(nn.Module):
             y_i = F.relu(self.fusion[i](torch.cat([y_local, y_others_i], dim=1)))
             y_i = self.drop_fusion(y_i)
             y_i = self.output[i](y_i)
-            y.append(y_i)
+            y_mtl.append(y_i)
 
         # give other cities attention score
-        y = torch.stack(y, dim=0)
+        y_moe = torch.stack(y_mtl, dim=0)
         attention_city = torch.stack(attention_city, dim=0)
         attention_city = F.softmax(attention_city, dim=0)
-        y = (attention_city * y).sum(dim=0)
+        y_moe = (attention_city * y_moe).sum(dim=0)
 
-        return y, torch.stack(mmd_target, dim=0), torch.stack(mmd_source, dim=0)
+        return y_moe, y_mtl, mmd

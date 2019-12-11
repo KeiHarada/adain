@@ -296,6 +296,23 @@ class MyDataset_HARADA(torch.utils.data.Dataset):
 
         return out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target
 
+class MyDataset_MMD(torch.utils.data.Dataset):
+
+    def __init__(self, data):
+        self.local_static = data[0]
+        self.local_seq = data[1]
+        self.data_num = len(data[4])
+
+    def __len__(self):
+        return self.data_num
+
+    def __getitem__(self, idx):
+
+        out_local_static = torch.tensor(self.local_static[idx])
+        out_local_seq = torch.tensor(self.local_seq[idx])
+
+        return out_local_static, out_local_seq
+
 class MyDataset_FNN(torch.utils.data.Dataset):
 
     def __init__(self, feature, target):

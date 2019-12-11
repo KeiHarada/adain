@@ -22,6 +22,7 @@ from source.model import FNN
 from source.utility import Color
 from source.utility import MyDataset_ADAIN
 from source.utility import MyDataset_HARADA
+from source.utility import MyDataset_MMD
 from source.utility import MyDataset_FNN
 from source.utility import get_dist_angle
 from source.utility import calc_correct
@@ -255,9 +256,16 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
     districtData = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
     cityData = pd.read_csv("rawdata/zheng2015/city.csv", dtype=object)
 
+    # an id of save file
+    city_id = -1
+    station_id = dict()
+    dataNum = 0
+    cid_local = 0
+
     # the number of data files
     trainNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["train"]
     for idx in range(trainNum):
+
         selector = "/train_{}.pkl.bz2".format(str(idx).zfill(3))
         local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
         dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
@@ -309,22 +317,36 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
         seqVect = list()
         for others_seq_i in others_seq:
             tmp = [[] for i in range(len(city_index))]
+
             for j in range(len(others_seq_i)):
                 cid = station_index[j]
+
                 if cid == cid_local:
                     continue
+
                 tmp[city_index.index(cid)].append(others_seq_i[j])
+
             seqVect.append(tmp)
 
         out_set = ([local_static]*dataNum, local_seq, [staticVect]*dataNum, seqVect, [geoVect]*dataNum, target)
 
-        with bz2.BZ2File("{}/train_{}.pkl.bz2".format(savePath_train, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+        if cid_local in station_id.keys():
+            station_id[cid_local] += 1
+        else:
+            city_id += 1
+            station_id[cid_local] = 0
+
+        with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
+                                                        str(city_id).zfill(3),
+                                                        str(station_id[cid_local]).zfill(3)),
+                                                        'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save train_{}.pkl.bz2".format(str(idx).zfill(3)))
+            print("* save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(idx).zfill(3)))
 
     # the number of data files
     validNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["valid"]
     for idx in range(validNum):
+
         selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
         local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
         dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
@@ -376,22 +398,35 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
         seqVect = list()
         for others_seq_i in others_seq:
             tmp = [[] for i in range(len(city_index))]
+
             for j in range(len(others_seq_i)):
                 cid = station_index[j]
+
                 if cid == cid_local:
                     continue
+
                 tmp[city_index.index(cid)].append(others_seq_i[j])
+
             seqVect.append(tmp)
 
-        out_set = ([local_static]*dataNum, local_seq, [staticVect]*dataNum, seqVect, [geoVect]*dataNum, target)
+        if cid_local in station_id.keys():
+            station_id[cid_local] += 1
+        else:
+            station_id[cid_local] = 0
 
-        with bz2.BZ2File("{}/valid_{}.pkl.bz2".format(savePath_train, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+        out_set = ([local_static] * dataNum, local_seq, [staticVect] * dataNum, seqVect, [geoVect] * dataNum, target)
+
+        with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
+                                                        str(city_id).zfill(3),
+                                                        str(station_id[cid_local]).zfill(3)),
+                                                        'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
-            print("* save valid_{}.pkl.bz2".format(str(idx).zfill(3)))
+            print("* save train_{}{}.pkl.bz2".format(str(city_id).zfill(2), str(idx).zfill(2)))
 
     # the number of data files
     testNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["test"]
     for idx in range(testNum):
+
         selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
         local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(testPath + selector, 'rb'))
         dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
@@ -445,11 +480,16 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
         seqVect = list()
         for others_seq_i in others_seq:
             tmp = [[] for i in range(len(city_index))]
+
             for j in range(len(others_seq_i)):
+
                 cid = station_index[j]
+
                 if cid == cid_removed:
                     continue
+
                 tmp[city_index.index(cid)].append(others_seq_i[j])
+
             seqVect.append(tmp)
 
         out_set = ([local_static]*dataNum, local_seq, [staticVect]*dataNum, seqVect, [geoVect]*dataNum, target)
@@ -458,10 +498,15 @@ def makeCityData(trainPath, testPath, savePath_train, savePath_test):
             fp.write(pickle.dumps(out_set))
             print("* save test_{}.pkl.bz2".format(str(idx).zfill(3)))
 
+        out_set = ([local_static]*dataNum, local_seq)
+        with bz2.BZ2File("{}/mmd_{}.pkl.bz2".format(savePath_train, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save mmd_{}.pkl.bz2".format(str(idx).zfill(3)))
+
     with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
-        pickle.dump({"test": testNum}, fp)
+        pickle.dump({"station": station_id[cid_local]+1, "city": city_id+1, "time": dataNum}, fp)
     with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
-        pickle.dump({"train": trainNum, "valid": validNum}, fp)
+        pickle.dump({"station": station_id[cid_local]+1, "city": city_id+1, "time": dataNum}, fp)
 
 def makeTrainData(savePath, station_train):
 
@@ -1056,15 +1101,22 @@ def objective_HARADA(trial):
     # wd = trial.suggest_loguniform('weight_decay', 1e-10, 1e-3)
 
     # hyper parameters for constance
-    batch_size = 256
-    epochs = 1
+    alpha = 0.5
+    beta = 0.5
+    batch_size = 32
+    epochs = 200
     lr = 0.001
     wd = 0.0005
 
+    # dataset path
+    dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
+
     # input dimension
     inputDim = pickle.load(open("datatmp/inputDim.pkl", "rb"))
-    cityNum = 4
-    stationNum = 5
+    cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
+    stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
+    dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
+    batchNum = math.ceil(dataNum/ batch_size)
 
     # model
     model = HARADA(inputDim_local_static=inputDim["local_static"],
@@ -1080,8 +1132,10 @@ def objective_HARADA(trial):
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
 
-    # evaluation function
-    criterion = nn.MSELoss()
+    # loss function
+    criterion_moe = nn.MSELoss()
+    criterion_mtl = nn.MSELoss()
+    criterion_mmd = nn.MSELoss()
 
     # initialize the early stopping object
     patience = 50
@@ -1090,37 +1144,49 @@ def objective_HARADA(trial):
     # log
     logs = list()
 
-    # dataset path
-    dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
-
-    # the number which the train/validation dataset was divivded into
-    trainNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["train"]
-    validNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["valid"]
-
     # start training
     for step in range(int(epochs)):
 
         epoch_loss = list()
 
-        # train
-        for idx in range(trainNum):
+        for batch_id in range(batchNum-1):
 
-            selector = "/train_{}.pkl.bz2".format(str(idx).zfill(3))
-            trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
-            for batch_i in torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=True):
+            print("\t|- batch loss: ", end="")
 
-                print("\t|- batch loss: ", end="")
+            # loss
+            loss_mtl = 0
+            loss_moe = 0
+            mmd_source = list()
 
-                # initialize graduation
-                optimizer.zero_grad()
+            for source_selector in range(cityNum):
 
-                # batch data
-                batch_local_static, \
-                batch_local_seq, \
-                batch_others_static, \
-                batch_others_seq, \
-                batch_others_city, \
-                batch_target = batch_i
+                batch_local_static = list()
+                batch_local_seq = list()
+                batch_others_static = list()
+                batch_others_seq = list()
+                batch_others_city = list()
+                batch_target = list()
+
+                for data_selector in range(stationNum):
+                    selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(2), str(data_selector).zfill(2))
+                    trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+                    trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batch_id]
+
+                    # add to batch data
+                    batch_local_static.append(trainData[0])
+                    batch_local_seq.append(trainData[1])
+                    batch_others_static.append(trainData[2])
+                    batch_others_seq.append(trainData[3])
+                    batch_others_city.append(trainData[4])
+                    batch_target.append(trainData[5])
+
+                # stack
+                batch_local_static = torch.stack(batch_local_static, dim=0)
+                batch_local_seq = torch.stack(batch_local_seq, dim=0)
+                batch_others_static = torch.stack(batch_others_static, dim=0)
+                batch_others_seq = torch.stack(batch_others_seq, dim=0)
+                batch_others_city = torch.stack(batch_others_city, dim=0)
+                batch_target = torch.stack(batch_target, dim=0)
 
                 # to GPU
                 batch_local_static = batch_local_static.to(device)
@@ -1131,39 +1197,59 @@ def objective_HARADA(trial):
                 batch_target = batch_target.to(device)
 
                 # predict
-                pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+                y_moe, y_mtl, mmd = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
 
-                # calculate loss, back-propagate loss, and step optimizer
-                loss = criterion(pred, batch_target)
-                loss.backward()
-                optimizer.step()
+                loss_moe += criterion_moe(y_moe, batch_target)
+                for y_mtl_i in y_mtl:
+                    loss_mtl += criterion_mtl(y_mtl_i, batch_target)
+                mmd_source.append(mmd)
 
-                # print a batch loss as RMSE
-                batch_loss = np.sqrt(loss.item())
-                print("%.10f" % (batch_loss))
+            # mmd loss
+            batch_local_static = list()
+            batch_local_seq = list()
 
-                # append batch loss to the list to calculate epoch loss
-                epoch_loss.append(batch_loss)
+            for data_selector in range(stationNum):
+                selectPath = "/mmd_{}.pkl.bz2".format(str(data_selector).zfill(2))
+                mmdData = MyDataset_MMD(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+                mmdData = torch.utils.data.DataLoader(mmdData, batch_size=batch_size, shuffle=False)[batch_id]
+
+                # add to batch data
+                batch_local_static.append(mmdData[0])
+                batch_local_seq.append(mmdData[1])
+
+            # stack
+            batch_local_static = torch.stack(batch_local_static, dim=0)
+            batch_local_seq = torch.stack(batch_local_seq, dim=0)
+
+            # to GPU
+            batch_local_static = batch_local_static.to(device)
+            batch_local_seq = batch_local_seq.to(device)
+
+            # calculate mmd loss
+            mmd_target = model.encode(batch_local_static, batch_local_seq)
+            mmd_source = torch.stack(mmd_source, dim=0)
+            loss_mmd = criterion_mmd(mmd_target, mmd_source)
+
+            # calculate loss, back-propagate loss, and step optimizer
+            optimizer.zero_grad()
+            loss = alpha*loss_moe + (1-alpha)*loss_mtl + beta*loss_mmd
+            loss.backward()
+            optimizer.step()
+
+            # print a batch loss as RMSE
+            print("%.10f" % (loss.item()))
+
+            # append batch loss to the list to calculate epoch loss
+            epoch_loss.append(loss.item())
 
         epoch_loss = np.average(epoch_loss)
         print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
 
         # validate
         print("\t\t|- validation : ", end="")
-        rmse = list()
-        accuracy = list()
         model.eval()
-        for idx in range(validNum):
-            selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
-            validData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
-            rmse_i, accuracy_i = validate_ADAIN(model, validData)
-            rmse.append(rmse_i)
-            accuracy.append(accuracy_i)
+        rmse, accuracy = validate_HARADA(model, batch_size)
         model.train()
-
-        # calculate validation loss
-        rmse = np.average(rmse)
-        accuracy = np.average(accuracy)
         log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
         logs.append(log)
         print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
@@ -1190,24 +1276,50 @@ def objective_HARADA(trial):
 
     return rmse
 
-def validate_HARADA(model, validData):
+def validate_HARADA(model, batch_size):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
+    cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
+    stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
+    dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
+    batchNum = math.ceil(dataNum/ batch_size)
 
     # for evaluation
     result = list()
     result_label = list()
 
-    batch_size = 200
+    for source_selector in range(cityNum):
 
-    for batch_i in torch.utils.data.DataLoader(validData, batch_size=batch_size, shuffle=False):
+        batch_local_static = list()
+        batch_local_seq = list()
+        batch_others_static = list()
+        batch_others_seq = list()
+        batch_others_city = list()
+        batch_target = list()
 
-        batch_local_static, \
-        batch_local_seq, \
-        batch_others_static, \
-        batch_others_seq, \
-        batch_others_city, \
-        batch_target = batch_i
+        for data_selector in range(stationNum):
+            selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(2), str(data_selector).zfill(2))
+            trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+            trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batchNum - 1]
+
+            # add to batch data
+            batch_local_static.append(trainData[0])
+            batch_local_seq.append(trainData[1])
+            batch_others_static.append(trainData[2])
+            batch_others_seq.append(trainData[3])
+            batch_others_city.append(trainData[4])
+            batch_target.append(trainData[5])
+
+        # stack
+        batch_local_static = torch.stack(batch_local_static, dim=0)
+        batch_local_seq = torch.stack(batch_local_seq, dim=0)
+        batch_others_static = torch.stack(batch_others_static, dim=0)
+        batch_others_seq = torch.stack(batch_others_seq, dim=0)
+        batch_others_city = torch.stack(batch_others_city, dim=0)
+        batch_target = torch.stack(batch_target, dim=0)
 
         # to GPU
         batch_local_static = batch_local_static.to(device)
@@ -1215,9 +1327,10 @@ def validate_HARADA(model, validData):
         batch_others_static = batch_others_static.to(device)
         batch_others_seq = batch_others_seq.to(device)
         batch_others_city = batch_others_city.to(device)
+        batch_target = batch_target.to(device)
 
         # predict
-        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
         pred = pred.to("cpu")
 
         # evaluate
@@ -1226,7 +1339,7 @@ def validate_HARADA(model, validData):
         result += pred
         result_label += batch_target
 
-    # evaluation score
+    # validation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
     accuracy = calc_correct(result, result_label) / len(result)
 
@@ -1236,10 +1349,18 @@ def evaluate_HARADA(model_state_dict):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    batch_size = 200
+    iteration = 0
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
     # input dimension
     inputDim = pickle.load(open("datatmp/inputDim.pkl", "rb"))
-    cityNum = 4
-    stationNum = 5
+    cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
+    stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
+    dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
+    batchNum = math.ceil(dataNum/ batch_size)
 
     # model
     model = HARADA(inputDim_local_static=inputDim["local_static"],
@@ -1259,47 +1380,61 @@ def evaluate_HARADA(model_state_dict):
     result = list()
     result_label = list()
 
-    # dataset path
-    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
-
     # the number which the test dataset was divided into
     testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
 
-    batch_size = 200
-    iteration = 0
+    for batch_id in range(batchNum - 1):
 
-    for idx in range(testNum):
+        print("\t|- batch loss: ", end="")
 
-        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
-        testData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selector, 'rb')))
-        for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
+        batch_local_static = list()
+        batch_local_seq = list()
+        batch_others_static = list()
+        batch_others_seq = list()
+        batch_others_city = list()
+        batch_target = list()
 
-            batch_local_static, \
-            batch_local_seq, \
-            batch_others_static, \
-            batch_others_seq, \
-            batch_others_city, \
-            batch_target = batch_i
+        for data_selector in range(stationNum):
+            selectPath = "/test_{}.pkl.bz2".format(str(data_selector).zfill(3))
+            trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+            trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batch_id]
 
-            # to GPU
-            batch_local_static = batch_local_static.to(device)
-            batch_local_seq = batch_local_seq.to(device)
-            batch_others_static = batch_others_static.to(device)
-            batch_others_seq = batch_others_seq.to(device)
-            batch_others_city = batch_others_city.to(device)
+            # add to batch data
+            batch_local_static.append(trainData[0])
+            batch_local_seq.append(trainData[1])
+            batch_others_static.append(trainData[2])
+            batch_others_seq.append(trainData[3])
+            batch_others_city.append(trainData[4])
+            batch_target.append(trainData[5])
 
-            # predict
-            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
-            pred = pred.to("cpu")
+        # stack
+        batch_local_static = torch.stack(batch_local_static, dim=0)
+        batch_local_seq = torch.stack(batch_local_seq, dim=0)
+        batch_others_static = torch.stack(batch_others_static, dim=0)
+        batch_others_seq = torch.stack(batch_others_seq, dim=0)
+        batch_others_city = torch.stack(batch_others_city, dim=0)
+        batch_target = torch.stack(batch_target, dim=0)
 
-            # evaluate
-            pred = list(map(lambda x: x[0], pred.data.numpy()))
-            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-            result += pred
-            result_label += batch_target
+        # to GPU
+        batch_local_static = batch_local_static.to(device)
+        batch_local_seq = batch_local_seq.to(device)
+        batch_others_static = batch_others_static.to(device)
+        batch_others_seq = batch_others_seq.to(device)
+        batch_others_city = batch_others_city.to(device)
+        batch_target = batch_target.to(device)
 
-            iteration += len(batch_target)
-            print("\t|- iteration %d / %d" % (iteration, len(testData)*testNum))
+        # predict
+        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
+        pred = pred.to("cpu")
+
+        # evaluate
+        pred = list(map(lambda x: x[0], pred.data.numpy()))
+        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+        result += pred
+        result_label += batch_target
+
+        iteration += len(batch_target)
+        print("\t|- iteration %d / %d" % (iteration, len(dataNum)*testNum))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
