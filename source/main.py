@@ -999,7 +999,6 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    #cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -1082,6 +1081,8 @@ if __name__ == "__main__":
     提案手法
     '''
     CITIEs4 =  ["BeiJing"]
+    cityTest19_cityData(CITIEs4)
+    exit()
     for TARGET in CITIEs4:
         exp19cities(TRIAL, TARGET)
 
