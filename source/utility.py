@@ -301,7 +301,7 @@ class MyDataset_MMD(torch.utils.data.Dataset):
     def __init__(self, data):
         self.local_static = data[0]
         self.local_seq = data[1]
-        self.data_num = len(data[4])
+        self.data_num = len(data[0])
 
     def __len__(self):
         return self.data_num

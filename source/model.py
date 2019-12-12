@@ -8,10 +8,7 @@ class FNN(nn.Module):
         super(FNN, self).__init__()
 
         # CPU or GPU
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # drop out layer
         self.drop = nn.Dropout2d(p=0.3)
@@ -48,10 +45,7 @@ class ADAIN(nn.Module):
         super(ADAIN, self).__init__()
 
         # CPU or GPU
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # drop out layer
         self.drop_static_local = nn.Dropout2d(p=0.3)
@@ -119,10 +113,7 @@ class ADAIN(nn.Module):
         '''
 
         # CPU or GPU
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         hidden0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
         cell0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
@@ -215,10 +206,7 @@ class HARADA(nn.Module):
         super(HARADA, self).__init__()
 
         # CPU or GPU
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.cityNum = cityNum
         self.stationNum = stationNum
@@ -271,8 +259,8 @@ class HARADA(nn.Module):
         # |- attention
         self.attention_station1 = nn.Linear(self.fc_attention_station_hidden, self.fc_attention_station_hidden)
         self.attention_station2 = nn.Linear(self.fc_attention_station_hidden, 1)
-        self.attention_city1 = nn.Linear(self.fc_attention_hidden, self.fc_attention_hidden)
-        self.attention_city2 = nn.Linear(self.fc_attention_hidden, 1)
+        self.attention_city1 = nn.Linear(self.fc_attention_city_hidden, self.fc_attention_city_hidden)
+        self.attention_city2 = nn.Linear(self.fc_attention_city_hidden, 1)
         nn.init.uniform_(self.attention_station1.weight, -0.1, 0.1)
         nn.init.uniform_(self.attention_station2.weight, -0.1, 0.1)
         nn.init.uniform_(self.attention_city1.weight, -0.1, 0.1)
@@ -301,10 +289,7 @@ class HARADA(nn.Module):
         '''
 
         # CPU or GPU
-        if torch.cuda.is_available():
-            device = "cuda"
-        else:
-            device = "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         hidden0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
         cell0 = ((torch.rand(1, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
@@ -338,9 +323,6 @@ class HARADA(nn.Module):
         :return: aqiの予測値
         '''
 
-        # loss
-        y_mtl = list()
-
         # |- local
         # static layer
         y_local_static = F.relu(self.fc_static_local(x_local_static))
@@ -358,13 +340,15 @@ class HARADA(nn.Module):
         y_local = self.drop_joint_local(y_local)
 
         # |- others
-        attention_city = list()
+
 
         # slicing by the number of cities
         x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, self.cityNum, dim=1)]
         x_others_seq = [torch.squeeze(x) for x in torch.chunk(x_others_seq, self.cityNum, dim=1)]
         x_others_city = [torch.squeeze(x) for x in torch.chunk(x_others_city, self.cityNum, dim=1)]
 
+        attention_city = list()
+        y_mtl = list()
         for i in range(self.cityNum):
 
             y_others_i = list()
@@ -373,7 +357,6 @@ class HARADA(nn.Module):
             # slicing by the number of stations
             x_others_static_i = [torch.squeeze(x) for x in torch.chunk(x_others_static[i], self.stationNum, dim=1)]
             x_others_seq_i = [torch.squeeze(x) for x in torch.chunk(x_others_seq[i], self.stationNum, dim=1)]
-            x_others_city_i = [torch.squeeze(x) for x in torch.chunk(x_others_city[i], self.stationNum, dim=1)]
 
             for j in range(self.stationNum):
 
@@ -382,10 +365,8 @@ class HARADA(nn.Module):
                 y_others_static_ij = self.drop_static_others(y_others_static_ij)
 
                 # lstm layer
-                y_others_seq_ij, (hidden, cell) = self.lstm1_others(x_others_seq_i[j],
-                                                                    self.initial_hidden(len(x_local_seq)))
-                y_others_seq_ij, (hidden, cell) = self.lstm2_others(y_others_seq_ij,
-                                                                   self.initial_hidden(len(x_local_seq)))
+                y_others_seq_ij, (hidden, cell) = self.lstm1_others(x_others_seq_i[j], self.initial_hidden(len(x_local_seq)))
+                y_others_seq_ij, (hidden, cell) = self.lstm2_others(y_others_seq_ij, self.initial_hidden(len(x_local_seq)))
                 y_others_seq_ij = self.drop_lstm_others(hidden[0])  # 最後の出力が欲しいのでhiddenを使う
 
                 # joint layer
@@ -402,7 +383,7 @@ class HARADA(nn.Module):
 
             # joint layer
             y_city_i = torch.cat(y_others_i, dim=1)
-            y_city_i = torch.cat([y_city_i, x_others_city_i], dim=1)
+            y_city_i = torch.cat([y_city_i, x_others_city[i]], dim=1)
 
             # city based attention layer
             attention_city_i = F.relu(self.attention_city1(torch.cat([y_local, y_city_i], dim=1)))

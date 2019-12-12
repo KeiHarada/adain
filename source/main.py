@@ -1081,10 +1081,8 @@ if __name__ == "__main__":
     提案手法
     '''
     CITIEs4 =  ["BeiJing"]
-    cityTest19_cityData(CITIEs4)
-    exit()
     for TARGET in CITIEs4:
-        exp19cities(TRIAL, TARGET)
+        expProposal(TRIAL, TARGET)
 
     '''
     距離計算

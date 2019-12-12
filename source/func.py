@@ -1107,9 +1107,9 @@ def objective_HARADA(trial):
 
     # hyper parameters for constance
     alpha = 0.5
-    beta = 0.5
-    batch_size = 32
-    epochs = 200
+    beta = 1
+    batch_size = 64
+    epochs = 10
     lr = 0.001
     wd = 0.0005
 
@@ -1128,7 +1128,7 @@ def objective_HARADA(trial):
                    inputDim_local_seq=inputDim["local_seq"],
                    inputDim_others_static=inputDim["others_static"],
                    inputDim_others_seq=inputDim["others_seq"],
-                   cityNum=cityNum,
+                   cityNum=cityNum-1,
                    stationNum=stationNum)
 
     # GPU or CPU
@@ -1175,7 +1175,7 @@ def objective_HARADA(trial):
                 for data_selector in range(stationNum):
                     selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
                     trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-                    trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batch_id]
+                    trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batch_id]
 
                     # add to batch data
                     batch_local_static.append(trainData[0])
@@ -1186,12 +1186,12 @@ def objective_HARADA(trial):
                     batch_target.append(trainData[5])
 
                 # stack
-                batch_local_static = torch.stack(batch_local_static, dim=0)
-                batch_local_seq = torch.stack(batch_local_seq, dim=0)
-                batch_others_static = torch.stack(batch_others_static, dim=0)
-                batch_others_seq = torch.stack(batch_others_seq, dim=0)
-                batch_others_city = torch.stack(batch_others_city, dim=0)
-                batch_target = torch.stack(batch_target, dim=0)
+                batch_local_static = torch.cat(batch_local_static, dim=0)
+                batch_local_seq = torch.cat(batch_local_seq, dim=0)
+                batch_others_static = torch.cat(batch_others_static, dim=0)
+                batch_others_seq = torch.cat(batch_others_seq, dim=0)
+                batch_others_city = torch.cat(batch_others_city, dim=0)
+                batch_target = torch.cat(batch_target, dim=0)
 
                 # to GPU
                 batch_local_static = batch_local_static.to(device)
@@ -1216,15 +1216,15 @@ def objective_HARADA(trial):
             for data_selector in range(stationNum):
                 selectPath = "/mmd_{}.pkl.bz2".format(str(data_selector).zfill(3))
                 mmdData = MyDataset_MMD(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-                mmdData = torch.utils.data.DataLoader(mmdData, batch_size=batch_size, shuffle=False)[batch_id]
+                mmdData = list(torch.utils.data.DataLoader(mmdData, batch_size=batch_size, shuffle=False))[batch_id]
 
                 # add to batch data
                 batch_local_static.append(mmdData[0])
                 batch_local_seq.append(mmdData[1])
 
             # stack
-            batch_local_static = torch.stack(batch_local_static, dim=0)
-            batch_local_seq = torch.stack(batch_local_seq, dim=0)
+            batch_local_static = torch.cat(batch_local_static, dim=0)
+            batch_local_seq = torch.cat(batch_local_seq, dim=0)
 
             # to GPU
             batch_local_static = batch_local_static.to(device)
@@ -1232,7 +1232,8 @@ def objective_HARADA(trial):
 
             # calculate mmd loss
             mmd_target = model.encode(batch_local_static, batch_local_seq)
-            mmd_source = torch.stack(mmd_source, dim=0)
+            mmd_source = torch.cat(mmd_source, dim=0)
+
             loss_mmd = criterion_mmd(mmd_target, mmd_source)
 
             # calculate loss, back-propagate loss, and step optimizer
@@ -1306,9 +1307,9 @@ def validate_HARADA(model, batch_size):
         batch_target = list()
 
         for data_selector in range(stationNum):
-            selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(2), str(data_selector).zfill(2))
+            selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-            trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batchNum - 1]
+            trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batchNum - 1]
 
             # add to batch data
             batch_local_static.append(trainData[0])
@@ -1319,12 +1320,12 @@ def validate_HARADA(model, batch_size):
             batch_target.append(trainData[5])
 
         # stack
-        batch_local_static = torch.stack(batch_local_static, dim=0)
-        batch_local_seq = torch.stack(batch_local_seq, dim=0)
-        batch_others_static = torch.stack(batch_others_static, dim=0)
-        batch_others_seq = torch.stack(batch_others_seq, dim=0)
-        batch_others_city = torch.stack(batch_others_city, dim=0)
-        batch_target = torch.stack(batch_target, dim=0)
+        batch_local_static = torch.cat(batch_local_static, dim=0)
+        batch_local_seq = torch.cat(batch_local_seq, dim=0)
+        batch_others_static = torch.cat(batch_others_static, dim=0)
+        batch_others_seq = torch.cat(batch_others_seq, dim=0)
+        batch_others_city = torch.cat(batch_others_city, dim=0)
+        batch_target = torch.cat(batch_target, dim=0)
 
         # to GPU
         batch_local_static = batch_local_static.to(device)
@@ -1332,7 +1333,6 @@ def validate_HARADA(model, batch_size):
         batch_others_static = batch_others_static.to(device)
         batch_others_seq = batch_others_seq.to(device)
         batch_others_city = batch_others_city.to(device)
-        batch_target = batch_target.to(device)
 
         # predict
         pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
@@ -1354,7 +1354,7 @@ def evaluate_HARADA(model_state_dict):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    batch_size = 200
+    batch_size = 64
     iteration = 0
 
     # dataset path
@@ -1372,7 +1372,7 @@ def evaluate_HARADA(model_state_dict):
                    inputDim_local_seq=inputDim["local_seq"],
                    inputDim_others_static=inputDim["others_static"],
                    inputDim_others_seq=inputDim["others_seq"],
-                   cityNum=cityNum,
+                   cityNum=cityNum-1,
                    stationNum=stationNum)
 
     model.load_state_dict(model_state_dict)
@@ -1385,10 +1385,7 @@ def evaluate_HARADA(model_state_dict):
     result = list()
     result_label = list()
 
-    # the number which the test dataset was divided into
-    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
-
-    for batch_id in range(batchNum - 1):
+    for batch_id in range(batchNum):
 
         print("\t|- batch loss: ", end="")
 
@@ -1402,7 +1399,7 @@ def evaluate_HARADA(model_state_dict):
         for data_selector in range(stationNum):
             selectPath = "/test_{}.pkl.bz2".format(str(data_selector).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-            trainData = torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False)[batch_id]
+            trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batch_id]
 
             # add to batch data
             batch_local_static.append(trainData[0])
@@ -1413,12 +1410,12 @@ def evaluate_HARADA(model_state_dict):
             batch_target.append(trainData[5])
 
         # stack
-        batch_local_static = torch.stack(batch_local_static, dim=0)
-        batch_local_seq = torch.stack(batch_local_seq, dim=0)
-        batch_others_static = torch.stack(batch_others_static, dim=0)
-        batch_others_seq = torch.stack(batch_others_seq, dim=0)
-        batch_others_city = torch.stack(batch_others_city, dim=0)
-        batch_target = torch.stack(batch_target, dim=0)
+        batch_local_static = torch.cat(batch_local_static, dim=0)
+        batch_local_seq = torch.cat(batch_local_seq, dim=0)
+        batch_others_static = torch.cat(batch_others_static, dim=0)
+        batch_others_seq = torch.cat(batch_others_seq, dim=0)
+        batch_others_city = torch.cat(batch_others_city, dim=0)
+        batch_target = torch.cat(batch_target, dim=0)
 
         # to GPU
         batch_local_static = batch_local_static.to(device)
@@ -1426,7 +1423,6 @@ def evaluate_HARADA(model_state_dict):
         batch_others_static = batch_others_static.to(device)
         batch_others_seq = batch_others_seq.to(device)
         batch_others_city = batch_others_city.to(device)
-        batch_target = batch_target.to(device)
 
         # predict
         pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
@@ -1439,7 +1435,7 @@ def evaluate_HARADA(model_state_dict):
         result_label += batch_target
 
         iteration += len(batch_target)
-        print("\t|- iteration %d / %d" % (iteration, len(dataNum)*testNum))
+        print("\t|- iteration %d / %d" % (iteration, dataNum*stationNum))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
