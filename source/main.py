@@ -993,12 +993,13 @@ if __name__ == "__main__":
     '''
     4 cities
     '''
-    # CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
 
     '''
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
+    cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -1080,9 +1081,8 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    CITIEs4 =  ["BeiJing"]
-    for TARGET in CITIEs4:
-        expProposal(TRIAL, TARGET)
+    # for TARGET in CITIEs4:
+    #     expProposal(TRIAL, TARGET)
 
     '''
     距離計算
