@@ -1752,6 +1752,85 @@ def evaluate_KNN(K):
 
     return rmse, accuracy
 
+def repeat_KNN(TARGET, start, end):
+
+    # aqi data
+    aqiData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+    for k, v in aqiData.items():
+        aqiData[k] = list(map(lambda x: x[0], v))
+
+    # static data
+    staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
+
+    # station data
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
+
+    # dataset path
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
+
+    # the number which the test dataset was divided into
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["test"]
+
+    # for evaluation
+    result = dict()
+    result_label = dict()
+    for idx in range(testNum):
+
+        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
+        dataset = pickle.load(bz2.BZ2File(dataPath + selector, 'rb'))
+        local_static, others_static = dataset[0][0], dataset[2][0]
+
+        # target station
+        target_station = [k for k, v in staticData.items() if v == local_static][0]
+
+        # source stations
+        source_station = list()
+        for staticData_i in others_static:
+            staticData_i = staticData_i[:-2]
+            source_station.append([k for k, v in staticData.items() if v == staticData_i][0])
+
+        # calculate distance from the local station
+        # local station
+        lat_target = float(stationData[stationData["sid"] == target_station]["lat"])
+        lon_target = float(stationData[stationData["sid"] == target_station]["lon"])
+
+        # distance
+        distance = dict()
+        for source_station_i in source_station:
+            lat_source = float(stationData[stationData["sid"] == source_station_i]["lat"])
+            lon_source = float(stationData[stationData["sid"] == source_station_i]["lon"])
+            distance[source_station_i] = get_dist_angle(lat1=lat_target, lon1=lon_target, lat2=lat_source, lon2=lon_source)["distance"]
+
+        # aqi data of target city
+        aqiData_target = aqiData[target_station]
+
+        # get K nearest neighbors
+        distance = sorted(distance.items(), key=lambda x: x[1])
+
+        for K in range(start, end):
+            nearest = list(map(lambda x: x[0], distance[:K]))
+
+            # agi data of source cities
+            aqiData_source = list()
+            for source_station_i in nearest:
+                aqiData_source.append(aqiData[source_station_i])
+            aqiData_source = list(np.mean(np.array(aqiData_source), axis=0))
+
+            # evaluate
+            if str(K) in result.keys():
+                result += aqiData_source
+                result_label += aqiData_target
+            else:
+                result[str(K)] = list()
+                result_label[str(K)] = list()
+                result[str(K)] += aqiData_source
+                result_label[str(K)] += aqiData_target
+
+    for k in result.keys():
+        rmse = np.sqrt(mean_squared_error(result[k], result_label[k]))
+        with open("result/{}Test19KNN_analysis.csv".format(TARGET), "a") as fp:
+            fp.write("{},{}\n".format(str(k), str(rmse)))
+
 def analysis_KNN(K):
 
     # aqi data
@@ -1802,30 +1881,32 @@ def analysis_KNN(K):
 
         # get K nearest neighbors
         distance = sorted(distance.items(), key=lambda x: x[1])
-        nearest = list(map(lambda x: x[0], distance[:K]))
+        print(distance[:K])
 
-        # agi data of source cities
-        aqiData_source = list()
-        for source_station_i in nearest:
-            aqiData_source.append(aqiData[source_station_i])
-
-        # aqi data of target city
-        aqiData_target = aqiData[target_station]
-
-        # evaluate
-        aqiData_source_mean = list(np.mean(np.array(aqiData_source), axis=0))
-        rmse = np.sqrt(mean_squared_error(aqiData_target, aqiData_source_mean))
-
-        with open("result/K{}_idx{}.csv".format(str(K), str(idx).zfill(3)), "w") as outfile:
-            outfile.write("RMSE={}\n".format(str(rmse)))
-            outfile.write("{},mean,{}\n".format(",".join(nearest), target_station))
-            for t in range(len(aqiData_target)):
-                tmp = list()
-                for s in range(len(nearest)):
-                    tmp.append(str(aqiData_source[s][t]))
-                tmp.append(str(aqiData_source_mean[t]))
-                tmp.append(str(aqiData_target[t]))
-                outfile.write("{}\n".format(",".join(tmp)))
+        # nearest = list(map(lambda x: x[0], distance[:K]))
+        #
+        # # agi data of source cities
+        # aqiData_source = list()
+        # for source_station_i in nearest:
+        #     aqiData_source.append(aqiData[source_station_i])
+        #
+        # # aqi data of target city
+        # aqiData_target = aqiData[target_station]
+        #
+        # # evaluate
+        # aqiData_source_mean = list(np.mean(np.array(aqiData_source), axis=0))
+        # rmse = np.sqrt(mean_squared_error(aqiData_target, aqiData_source_mean))
+        #
+        # with open("result/K{}_idx{}.csv".format(str(K), str(idx).zfill(3)), "w") as outfile:
+        #     outfile.write("RMSE={}\n".format(str(rmse)))
+        #     outfile.write("{},mean,{}\n".format(",".join(nearest), target_station))
+        #     for t in range(len(aqiData_target)):
+        #         tmp = list()
+        #         for s in range(len(nearest)):
+        #             tmp.append(str(aqiData_source[s][t]))
+        #         tmp.append(str(aqiData_source_mean[t]))
+        #         tmp.append(str(aqiData_target[t]))
+        #         outfile.write("{}\n".format(",".join(tmp)))
 
 def evaluate_LI():
 

@@ -924,38 +924,35 @@ def analysisKNN(TARGET):
     '''
 
     from source.func import analysis_KNN
+    from source.func import repeat_KNN
 
-    loop = 1
-    start = time.time()
-    print("----------------")
-    print("* TARGET: {}{}".format(TARGET, str(loop)))
+    for loop in range(1, 3):
+        print("----------------")
+        print("* TARGET: {}{}".format(TARGET, str(loop)))
 
-    # save dataset path
-    with open("tmp/testPath.pkl", "wb") as fp:
-        pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+        # save dataset path
+        with open("tmp/testPath.pkl", "wb") as fp:
+            pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
 
-    # analysis
-    analysis_KNN(K=95)
-    exit()
+        analysis_KNN(K=3)
 
-    # evaluate
-    rmse_list = list()
-    accuracy_list = list()
-    for k in range(1, 96):
-        rmse, accuracy = evaluate_KNN(K=k)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
-
-    # time
-    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
-
-    with open("result/{}Test19KNN_analysis.csv".format(TARGET), "w") as result:
-        result.write("--------------------------------------------\n")
-        result.write("RMSE\n")
-        result.write("----------\n")
-        result.write("K,RMSE\n")
-        for k in range(1, 96):
-            result.write("{},{}\n".format(str(k), str(rmse_list[k-1])))
+    # ---------------------------------------------------------------------- #
+    #
+    # loop = 1
+    # print("----------------")
+    # print("* TARGET: {}{}".format(TARGET, str(loop)))
+    #
+    # # save dataset path
+    # with open("tmp/testPath.pkl", "wb") as fp:
+    #     pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
+    #
+    # # repeat KNN
+    # with open("result/{}Test19KNN_analysis.csv".format(TARGET), "w") as result:
+    #     result.write("--------------------------------------------\n")
+    #     result.write("RMSE\n")
+    #     result.write("----------\n")
+    #     result.write("K,RMSE\n")
+    #     repeat_KNN(TARGET, 1, 96)
 
 if __name__ == "__main__":
 
@@ -999,7 +996,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    cityTest19_cityData(CITIEs4)
+    #cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -1061,7 +1058,8 @@ if __name__ == "__main__":
     '''
     # for TARGET in CITIEs4:
     #     expKNN(TARGET)
-    #analysisKNN("BeiJing")
+    for city in CITIEs4:
+        analysisKNN(city)
 
     '''
     Experiment7:
