@@ -904,18 +904,35 @@ def cityTest19_cityData(CITIEs4):
 
     for TARGET in CITIEs4:
 
-        print("*---TARGET: {}".format(TARGET))
+        if TARGET == "TianJin":
 
-        for loop in range(1, 4):
-            print("* Shuffle Loop: {}".format(str(loop)))
+            print("*---TARGET: {}".format(TARGET))
 
-            # dataset path
-            trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
-            testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
-            savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
-            savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+            for loop in range(3, 4):
+                print("* Shuffle Loop: {}".format(str(loop)))
 
-            makeCityData(trainPath, testPath, savePath_train, savePath_test)
+                # dataset path
+                trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
+                testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+
+                makeCityData(trainPath, testPath, savePath_train, savePath_test)
+
+        else:
+
+            print("*---TARGET: {}".format(TARGET))
+
+            for loop in range(1, 4):
+                print("* Shuffle Loop: {}".format(str(loop)))
+
+                # dataset path
+                trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
+                testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+
+                makeCityData(trainPath, testPath, savePath_train, savePath_test)
 
 def analysisKNN(TARGET):
 
@@ -996,7 +1013,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["BeiJing"]
+    CITIEs4 = ["TianJin", "ShenZhen", "GuangZhou"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
