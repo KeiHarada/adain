@@ -350,7 +350,7 @@ def expProposal(TRIAL, TARGET):
     rmse_list = list()
     accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
         print("* SOURCE: All{}".format(str(loop)))
@@ -904,23 +904,6 @@ def cityTest19_cityData(CITIEs4):
 
     for TARGET in CITIEs4:
 
-        if TARGET == "TianJin":
-
-            print("*---TARGET: {}".format(TARGET))
-
-            for loop in range(3, 4):
-                print("* Shuffle Loop: {}".format(str(loop)))
-
-                # dataset path
-                trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
-                testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
-                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
-                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
-
-                makeCityData(trainPath, testPath, savePath_train, savePath_test)
-
-        else:
-
             print("*---TARGET: {}".format(TARGET))
 
             for loop in range(1, 4):
@@ -987,7 +970,7 @@ if __name__ == "__main__":
     '''
     20 cities
     '''
-    # 気象データが全部Nullの都市は無視
+    # #気象データが全部Nullの都市は無視
     # CITIEs20 = list()
     # for city in list(pd.read_csv("rawdata/zheng2015/city.csv")["name_english"]):
     #     with open("database/station/station_"+city+".csv", "r") as infile:
@@ -1003,6 +986,12 @@ if __name__ == "__main__":
     # CITIEs20.remove("BinZhou")
     # CITIEs20.remove("DongYing")
     # CITIEs20.remove("ChenZhou")
+    #
+    # with open("tmp/station_table.csv", "w") as outfile:
+    #     outfile.write("都市,観測ステーション数\n")
+    #     for city in CITIEs20:
+    #         with open("database/station/station_{}.csv".format(city), "r") as infile:
+    #             outfile.write("{},{}\n".format(city, str(len(infile.readlines())-1)))
 
     '''
     4 cities
@@ -1013,7 +1002,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["TianJin", "ShenZhen", "GuangZhou"]
+    CITIEs4 = ["TianJin"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
@@ -1097,6 +1086,7 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
+    # CITIEs4 = ["BeiJing"]
     # for TARGET in CITIEs4:
     #     expProposal(TRIAL, TARGET)
 

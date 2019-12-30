@@ -274,22 +274,42 @@ class MyDataset_ADAIN(torch.utils.data.Dataset):
 class MyDataset_HARADA(torch.utils.data.Dataset):
 
     def __init__(self, data):
+
         self.local_static = data[0]
         self.local_seq = data[1]
         self.others_static = data[2]
         self.others_seq = data[3]
         self.others_city = data[4]
         self.target = data[5]
-        self.data_num = len(data[4])
+        self.data_num = len(data[5])
 
     def __len__(self):
         return self.data_num
 
     def __getitem__(self, idx):
 
+        # print("")
+        # print(type(self.others_static))
+        # print(len(self.others_static))
+        # print(type(self.others_static[0]))
+        # print(len(self.others_static[0]))
+        # print(type(self.others_static[0][0]))
+        # print(len(self.others_static[0][0]))
+        # print(type(self.others_static[0][0][0]))
+        # print(len(self.others_static[0][0][0]))
+        # exit()
+
+        for item in self.others_city[idx]:
+            print(len(item))
+            # for factor in item:
+            #     print("\t{}".format(str(len(factor))))
+
+        exit()
+
         out_local_static = torch.tensor(self.local_static[idx])
         out_local_seq = torch.tensor(self.local_seq[idx])
         out_others_static = torch.tensor(self.others_static[idx])
+        print(out_others_static.size())
         out_others_seq = torch.tensor(self.others_seq[idx])
         out_others_city = torch.tensor(self.others_city[idx])
         out_target = torch.tensor(self.target[idx])
