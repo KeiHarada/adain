@@ -247,306 +247,211 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeCityData(trainPath, testPath, savePath_train, savePath_test):
+def makeTrainData_city(dataPath, savePath):
 
-    # static data
+    # raw data
+    stationRaw = pd.read_csv("rawdata/zheng2015/station.csv", dtype=object)
+    districtRaw = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
+    cityRaw = pd.read_csv("rawdata/zheng2015/city.csv", dtype=object)
+
+    # dataset
+    stationData = pickle.load(open("datatmp/stationData.pkl", "rb"))
     staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
-    # meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
-    # aqiData = pickle.load(open("datatmp/aqiData.pkl", "rb"))
-    # targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
+    meteorologyData = pickle.load(open("datatmp/meteorologyData.pkl", "rb"))
+    aqiData = pickle.load(open("datatmp/aqiData.pkl", "rb"))
+    targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
 
-    # station, district, city data
-    stationData = pd.read_csv("rawdata/zheng2015/station.csv", dtype=object)
-    districtData = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
-    cityData = pd.read_csv("rawdata/zheng2015/city.csv", dtype=object)
+    # station train
+    tmp = pickle.load(bz2.BZ2File("{}/train_000.pkl.bz2".format(dataPath), 'rb'))
+    local, tmp = tmp[0][0], tmp[2][0]
+    local = [k for k, v in staticData.items() if v == local][0]
+    others = list()
+    for static in tmp:
+        static = static[:-2]
+        others.append([k for k, v in staticData.items() if v == static][0])
 
-    # id of a save file
+    station_train = dict()
+    for sid in [local] + others:
+        did = list(stationRaw[stationRaw["station_id"] == sid]["district_id"])[0]
+        cid = list(districtRaw[districtRaw["district_id"] == did]["city_id"])[0]
+        if cid in station_train.keys():
+            station_train[cid].append(sid)
+        else:
+            station_train[cid] = list()
+            station_train[cid].append(sid)
+
+    for k, v in station_train.items():
+
+        if len(v) > 5:
+            v = list(set(v))
+            v = v[:5]
+            station_train[k] = v
+
+        if len(v) < 5:
+            eng_name = list(cityRaw[cityRaw["city_id"] == k]["name_english"])[0]
+            tmp = list(pd.read_csv("database/station/station_{}.csv".format(eng_name), dtype=object)["sid"])
+            for removed in v:
+                tmp.remove(removed)
+            random.shuffle(tmp)
+            station_train[k].append(tmp[0])
+
+    station_train = [v for k, v in station_train.items()]
+
+    '''
+    featureData_t = (local_static, local_seq, others_static, others_seq)_t
+    labelData_t = target_t
+    '''
+
     dataNum = 0
-    city_counter = -1
-    city_id = dict()
-    station_id = dict()
+    for i in range(len(station_train)):
 
-    # the number of data files
-    #trainNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["train"]
-    trainNum = 1
-    for idx in range(trainNum):
+        # location of local city
+        sid_local = station_train[i][0]
+        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
+        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
 
-        selector = "/train_{}.pkl.bz2".format(str(idx).zfill(3))
-        local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
-        dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
+        # location of other cities
+        others_city = list()
+        for j in range(len(station_train)):
 
-        # local's location
-        sid_local = [k for k, v in staticData.items() if v == local_static][0]
-        did_local = list(stationData[stationData["station_id"] == sid_local]["district_id"])[0]
-        cid_local = list(districtData[districtData["district_id"] == did_local]["city_id"])[0]
-        print(cid_local)
-        lat_local = float(cityData[cityData["city_id"] == cid_local]["latitude"])
-        lon_local = float(cityData[cityData["city_id"] == cid_local]["longitude"])
-
-        # output vectors
-        cid2index = list()
-        station2cid = list()
-        geoVect = list()
-        staticVect = list()
-
-        stationCounter = dict()
-        for others_static_i in others_static:
-            tmp = others_static_i[:-2]
-            sid = [k for k, v in staticData.items() if v == tmp][0]
-            did = list(stationData[stationData["station_id"] == sid]["district_id"])[0]
-            cid = list(districtData[districtData["district_id"] == did]["city_id"])[0]
-            station2cid.append(cid)
-
-            if cid in stationCounter.keys():
-                stationCounter[cid].append(sid)
-            else:
-                stationCounter[cid] = list()
-                stationCounter[cid].append(sid)
-
-            if len(stationCounter[cid]) > 5:
-                # stationCounter[cid] = stationCounter[cid][:-1]
-                # station2cid = station2cid[:-1]
-                # station2cid.append("NaN")
+            if i == j:
                 continue
 
-            if cid == cid_local:
-                continue
+            sid = station_train[j][0]
+            did = list(stationRaw[stationRaw["station_id"] == sid]["district_id"])[0]
+            cid = list(districtRaw[districtRaw["district_id"] == did]["city_id"])[0]
+            lat = float(cityRaw[cityRaw["city_id"] == cid]["latitude"])
+            lon = float(cityRaw[cityRaw["city_id"] == cid]["longitude"])
+            result = get_dist_angle(lat_local, lon_local, lat, lon)
+            others_city.append([result["distance"], result["azimuth1"]])
 
-            if cid not in cid2index:
-                cid2index.append(cid)
-                geoVect.append([])
-                staticVect.append([])
+        others_city = np.array(others_city)
+        minimum = others_city.min(axis=0, keepdims=True)
+        maximum = others_city.max(axis=0, keepdims=True)
+        others_city = (others_city - minimum) / (maximum - minimum)
+        others_city = list(map(lambda x: list(x), others_city))
 
-            lat = float(cityData[cityData["city_id"] == cid]["latitude"])
-            lon = float(cityData[cityData["city_id"] == cid]["longitude"])
-            tmp = get_dist_angle(lat_local, lon_local, lat, lon)
+        for station_local in station_train[i]:
 
-            geoVect[cid2index.index(cid)] = [tmp["distance"], tmp["azimuth1"]]
-            staticVect[cid2index.index(cid)].append(others_static_i)
+            # output
+            out_local_static = list()
+            out_local_seq = list()
+            out_others_static = list()
+            out_others_seq = list()
+            out_others_city = list()
+            out_target = list()
 
-        print(stationCounter)
-        exit()
+            '''
+            calculate distance and angle of other stations from local stations
+            '''
+            # lat, lon of local station
+            lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
+            lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
 
-        # normalization others' location
-        geoVect = np.array(geoVect)
-        minimum = geoVect.min(axis=0, keepdims=True)
-        maximum = geoVect.max(axis=0, keepdims=True)
-        geoVect = (geoVect - minimum) / (maximum - minimum)
-        geoVect = list(map(lambda x: list(x), geoVect))
+            # distance and angle
+            geoVect = list()
+            for j in range(len(station_train)):
 
-        # group sequence data
-        seqVect = list()
-        for others_seq_i in others_seq:
-            tmp = [[] for i in range(len(cid2index))]
-
-            for j in range(len(others_seq_i)):
-                cid = station2cid[j]
-
-                if cid == cid_local:
+                if i == j:
                     continue
 
-                tmp[cid2index.index(cid)].append(others_seq_i[j])
+                for station_others_j in station_train[j]:
+                    lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
+                    lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
+                    result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+                    geoVect.append([result["distance"], result["azimuth1"]])
 
-            seqVect.append(tmp)
+            # normalization others' location
+            geoVect = np.array(geoVect)
+            minimum = geoVect.min(axis=0, keepdims=True)
+            maximum = geoVect.max(axis=0, keepdims=True)
+            geoVect = (geoVect - minimum) / (maximum - minimum)
+            geoVect = list(map(lambda x: list(x), geoVect))
 
-        out_set = ([local_static]*dataNum, local_seq, [staticVect]*dataNum, seqVect, [geoVect]*dataNum, target)
+            # add geoVect to static data
+            others_static = list()
+            idx = 0
+            for j in range(len(station_train)):
 
-        if cid_local in station_id.keys():
-            station_id[cid_local] += 1
-        else:
-            city_counter += 1
-            city_id[cid_local] = city_counter
-            station_id[cid_local] = 0
-
-        with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
-                                                        str(city_id[cid_local]).zfill(3),
-                                                        str(station_id[cid_local]).zfill(3)),
-                                                        'wb', compresslevel=9) as fp:
-            fp.write(pickle.dumps(out_set))
-        print("* save train_{}{}.pkl.bz2".format(str(city_id[cid_local]).zfill(3), str(station_id[cid_local]).zfill(3)))
-
-    # the number of data files
-    # validNum = pickle.load(open("{}/fileNum.pkl".format(trainPath), "rb"))["valid"]
-    validNum = 1
-    for idx in range(validNum):
-
-        selector = "/valid_{}.pkl.bz2".format(str(idx).zfill(3))
-        local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(trainPath + selector, 'rb'))
-        dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
-
-        # local's location
-        tmp = [k for k, v in staticData.items() if v == local_static][0]
-        tmp = list(stationData[stationData["station_id"] == tmp]["district_id"])[0]
-        tmp = list(districtData[districtData["district_id"] == tmp]["city_id"])[0]
-        cid_local = tmp
-        lat_local = float(cityData[cityData["city_id"] == tmp]["latitude"])
-        lon_local = float(cityData[cityData["city_id"] == tmp]["longitude"])
-
-        # output vectors
-        cid2index = list()
-        station2cid = list()
-        geoVect = list()
-        staticVect = list()
-
-        for others_static_i in others_static:
-            tmp = others_static_i[:-2]
-            tmp = [k for k, v in staticData.items() if v == tmp][0]
-            tmp = list(stationData[stationData["station_id"] == tmp]["district_id"])[0]
-            cid = list(districtData[districtData["district_id"] == tmp]["city_id"])[0]
-            station2cid.append(cid)
-
-            if cid == cid_local:
-                continue
-
-            if cid not in cid2index:
-                cid2index.append(cid)
-                geoVect.append([])
-                staticVect.append([])
-
-            lat = float(cityData[cityData["city_id"] == cid]["latitude"])
-            lon = float(cityData[cityData["city_id"] == cid]["longitude"])
-            tmp = get_dist_angle(lat_local, lon_local, lat, lon)
-
-            geoVect[cid2index.index(cid)] = [tmp["distance"], tmp["azimuth1"]]
-            staticVect[cid2index.index(cid)].append(others_static_i)
-
-        # normalization others' location
-        geoVect = np.array(geoVect)
-        minimum = geoVect.min(axis=0, keepdims=True)
-        maximum = geoVect.max(axis=0, keepdims=True)
-        geoVect = (geoVect - minimum) / (maximum - minimum)
-        geoVect = list(map(lambda x: list(x), geoVect))
-
-        # group sequence data
-        seqVect = list()
-        for others_seq_i in others_seq:
-            tmp = [[] for i in range(len(cid2index))]
-
-            for j in range(len(others_seq_i)):
-                cid = station2cid[j]
-
-                if cid == cid_local:
+                if i == j:
                     continue
 
-                tmp[cid2index.index(cid)].append(others_seq_i[j])
+                others_static_j = list()
+                for station_others_j in station_train[j]:
+                    others_static_j.append(staticData[station_others_j] + geoVect[idx])
+                    idx += 1
+                others_static.append(others_static_j)
 
-            seqVect.append(tmp)
+            '''
+            concut meteorological data with aqi data of seqData of others
+            '''
+            seqData_others = dict()
+            for j in range(len(station_train)):
 
-        if cid_local in station_id.keys():
-            station_id[cid_local] += 1
-        else:
-            city_counter += 1
-            city_id[cid_local] = city_counter
-            station_id[cid_local] = 0
-
-        out_set = ([local_static] * dataNum, local_seq, [staticVect] * dataNum, seqVect, [geoVect] * dataNum, target)
-
-        with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train,
-                                                        str(city_id[cid_local]).zfill(3),
-                                                        str(station_id[cid_local]).zfill(3)),
-                                                        'wb', compresslevel=9) as fp:
-            fp.write(pickle.dumps(out_set))
-        print("* save train_{}{}.pkl.bz2".format(str(city_id[cid_local]).zfill(3), str(station_id[cid_local]).zfill(3)))
-
-    # the number of data files
-    #testNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["test"]
-    testNum = 1
-    for idx in range(testNum):
-
-        selector = "/test_{}.pkl.bz2".format(str(idx).zfill(3))
-        local_static, local_seq, others_static, others_seq, target = pickle.load(bz2.BZ2File(testPath + selector, 'rb'))
-        dataNum, local_static, others_static = len(target), local_static[0], others_static[0]
-
-        for others_static_i in others_static:
-            tmp = others_static_i[:-2]
-            tmp = [k for k, v in staticData.items() if v == tmp][0]
-            tmp = list(stationData[stationData["station_id"] == tmp]["district_id"])[0]
-            cid = list(districtData[districtData["district_id"] == tmp]["city_id"])[0]
-            if cid in city_id:
-                city_id[cid].append(cid)
-            else:
-                city_id[cid] = list()
-                city_id[cid].append(cid)
-        print(city_id)
-        exit()
-
-        # local's location
-        tmp = [k for k, v in staticData.items() if v == local_static][0]
-        tmp = list(stationData[stationData["station_id"] == tmp]["district_id"])[0]
-        tmp = list(districtData[districtData["district_id"] == tmp]["city_id"])[0]
-        lat_local = float(cityData[cityData["city_id"] == tmp]["latitude"])
-        lon_local = float(cityData[cityData["city_id"] == tmp]["longitude"])
-
-        # output vectors
-        cid2index = list()
-        station2cid = list()
-        geoVect = list()
-        staticVect = list()
-
-        for others_static_i in others_static:
-            tmp = others_static_i[:-2]
-            tmp = [k for k, v in staticData.items() if v == tmp][0]
-            tmp = list(stationData[stationData["station_id"] == tmp]["district_id"])[0]
-            cid = list(districtData[districtData["district_id"] == tmp]["city_id"])[0]
-            station2cid.append(cid)
-
-            if cid not in cid2index:
-                cid2index.append(cid)
-                geoVect.append([])
-                staticVect.append([])
-
-            lat = float(cityData[cityData["city_id"] == cid]["latitude"])
-            lon = float(cityData[cityData["city_id"] == cid]["longitude"])
-            tmp = get_dist_angle(lat_local, lon_local, lat, lon)
-
-            geoVect[cid2index.index(cid)] = [tmp["distance"], tmp["azimuth1"]]
-            staticVect[cid2index.index(cid)].append(others_static_i)
-
-        # remove a city
-        tmp = list(map(lambda x: len(x), staticVect))
-        tmp = tmp.index(min(tmp))
-        cid_removed = cid2index[tmp]
-        del staticVect[tmp], geoVect[tmp], cid2index[tmp]
-
-        # normalization others' location
-        geoVect = np.array(geoVect)
-        minimum = geoVect.min(axis=0, keepdims=True)
-        maximum = geoVect.max(axis=0, keepdims=True)
-        geoVect = (geoVect - minimum) / (maximum - minimum)
-        geoVect = list(map(lambda x: list(x), geoVect))
-
-        # group sequence data
-        seqVect = list()
-        for others_seq_i in others_seq:
-            tmp = [[] for i in range(len(cid2index))]
-
-            for j in range(len(others_seq_i)):
-
-                cid = station2cid[j]
-
-                if cid == cid_removed:
+                if i == j:
                     continue
 
-                tmp[cid2index.index(cid)].append(others_seq_i[j])
+                for station_others_j in station_train[j]:
+                    m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
+                    a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
+                    for k in range(len(m)):
+                        for l in range(len(m[k])):
+                            m[k][l] += a[k][l]
+                    seqData_others[station_others_j] = m
 
-            seqVect.append(tmp)
+            '''
+            local data and target data
+            '''
+            local_static = staticData[station_local]
+            local_seq = meteorologyData[station_local]
+            target = targetData[station_local]
+            dataNum = len(target)
 
-        out_set = ([local_static]*dataNum, local_seq, [staticVect]*dataNum, seqVect, [geoVect]*dataNum, target)
+            for t in range(dataNum):
 
-        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
-            fp.write(pickle.dumps(out_set))
-        print("* save test_{}.pkl.bz2".format(str(idx).zfill(3)))
+                others_seq = list()
 
-        out_set = ([local_static]*dataNum, local_seq)
-        with bz2.BZ2File("{}/mmd_{}.pkl.bz2".format(savePath_train, str(idx).zfill(3)), 'wb', compresslevel=9) as fp:
-            fp.write(pickle.dumps(out_set))
-        print("* save mmd_{}.pkl.bz2".format(str(idx).zfill(3)))
+                for j in range(len(station_train)):
 
-    tmp = {"station": max(list(station_id.values()))+1, "city": max(list(city_id.values()))+1, "time": dataNum}
-    with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
-        pickle.dump(tmp, fp)
-    with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
-        pickle.dump(tmp, fp)
+                    if i == j:
+                        continue
+
+                    others_seq_j = list()
+                    for station_others_j in station_train[j]:
+                        others_seq_j.append(seqData_others[station_others_j][t])
+                    others_seq.append(others_seq_j)
+
+                out_local_static.append(local_static)
+                out_local_seq.append(local_seq[t])
+                out_others_static.append(others_static)
+                out_others_seq.append(others_seq)
+                out_others_city.append(others_city)
+                out_target.append(target[t])
+
+
+            print(np.array(out_local_static).shape)
+            print(np.array(out_local_seq).shape)
+            print(np.array(out_others_static).shape)
+            print(np.array(out_others_seq).shape)
+            print(np.array(out_others_city).shape)
+            print(np.array(out_target).shape)
+            exit()
+
+            out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
+
+            cityCode = str(i).zfill(3)
+            stationCode = str(station_train[i].index(station_local)).zfill(3)
+
+            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath, cityCode, stationCode, 'wb', compresslevel=9)) as fp:
+                fp.write(pickle.dumps(out_set))
+                print("* save train_{}{}.pkl.bz2".format(cityCode, stationCode))
+
+            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_seq, out_target, out_set
+
+    with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
+        pickle.dump({"station": len(station_train[0]), "city": len(station_train), "time": dataNum}, fp)
 
 def makeTrainData(savePath, station_train):
 
@@ -1143,9 +1048,9 @@ def objective_HARADA(trial):
     # hyper parameters for constance
     alpha = 0.5
     beta = 1
-    batch_size = 10
-    epochs = 1
-    lr = 0.001
+    batch_size = 64
+    epochs = 10
+    lr = 0.01
     wd = 0.0005
 
     # dataset path
@@ -1157,11 +1062,6 @@ def objective_HARADA(trial):
     stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
     dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
     batchNum = math.ceil(dataNum/ batch_size)
-
-    cityNum = 1
-    stationNum = 2
-    dataNum = 20
-    batchNum = 2
 
     # model
     model = HARADA(inputDim_local_static=inputDim["local_static"],
@@ -1398,7 +1298,7 @@ def evaluate_HARADA(model_state_dict):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    batch_size = 10
+    batch_size = 64
     iteration = 0
 
     # dataset path

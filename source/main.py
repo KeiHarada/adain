@@ -10,11 +10,12 @@ import random
 import torch
 import optuna
 import math
+import bz2
 import numpy as np
 import pandas as pd
 # from my library
 from source.func import makeDataset
-from source.func import makeCityData
+from source.func import makeTrainData_city
 from source.func import makeTrainData
 from source.func import makeTestData
 from source.func import makeTestData_sampled
@@ -909,13 +910,14 @@ def cityTest19_cityData(CITIEs4):
             for loop in range(1, 4):
                 print("* Shuffle Loop: {}".format(str(loop)))
 
-                # dataset path
-                trainPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
-                testPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
-                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
-                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+                # train data
+                dataPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
+                savePath = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+                makeTrainData_city(dataPath, savePath)
 
-                makeCityData(trainPath, testPath, savePath_train, savePath_test)
+                # # test data
+                # dataPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+                # savePath = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
 
 def analysisKNN(TARGET):
 
