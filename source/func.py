@@ -1225,11 +1225,7 @@ def objective_HARADA(trial):
 
                 for data_selector in range(stationNum):
                     selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
-                    selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), "001")
                     trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-                    print(len(trainData[0]))
-                    exit()
-                    trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
                     trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batch_id]
 
                     # add to batch data
