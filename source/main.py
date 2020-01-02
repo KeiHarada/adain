@@ -906,7 +906,7 @@ def cityTest19_cityData(CITIEs4):
 
             print("*---TARGET: {}".format(TARGET))
 
-            for loop in range(1, 4):
+            for loop in range(3, 4):
                 print("* Shuffle Loop: {}".format(str(loop)))
 
                 # train data
@@ -996,13 +996,12 @@ if __name__ == "__main__":
     '''
     4 cities
     '''
-    #CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
 
     '''
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["BeiJing"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
