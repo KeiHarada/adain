@@ -437,10 +437,10 @@ def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
             cityCode = str(i).zfill(3)
             stationCode = str(station_train[i].index(station_local)).zfill(3)
 
-            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train, cityCode, stationCode, 'wb', compresslevel=9)) as fp:
+            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train, cityCode, stationCode), 'wb', compresslevel=9) as fp:
                 fp.write(pickle.dumps(out_set))
                 print("* save train_{}{}.pkl.bz2".format(cityCode, stationCode))
-
+            exit()
             del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
 
     with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
@@ -555,7 +555,7 @@ def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
 
         out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
 
-        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(i).zfill(3), 'wb', compresslevel=9)) as fp:
+        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(i).zfill(3)), 'wb', compresslevel=9) as fp:
             fp.write(pickle.dumps(out_set))
             print("* save test_{}.pkl.bz2".format(str(i).zfill(3)))
 
