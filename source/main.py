@@ -10,7 +10,6 @@ import random
 import torch
 import optuna
 import math
-import bz2
 import numpy as np
 import pandas as pd
 # from my library
@@ -1003,7 +1002,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["BeiJing"]
+    CITIEs4 = ["TianJin"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
