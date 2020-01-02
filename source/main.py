@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 # from my library
 from source.func import makeDataset
-from source.func import makeTrainData_city
+from source.func import makeCityData
 from source.func import makeTrainData
 from source.func import makeTestData
 from source.func import makeTestData_sampled
@@ -911,13 +911,12 @@ def cityTest19_cityData(CITIEs4):
                 print("* Shuffle Loop: {}".format(str(loop)))
 
                 # train data
-                dataPath = "dataset/{}Test19/train{}".format(TARGET, str(loop))
-                savePath = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
-                makeTrainData_city(dataPath, savePath)
-
-                # # test data
-                # dataPath = "dataset/{}Test19/test{}".format(TARGET, str(loop))
-                # savePath = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+                dataPath_train = "dataset/{}Test19/train{}".format(TARGET, str(loop))
+                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+                # test data
+                dataPath_test = "dataset/{}Test19/test{}".format(TARGET, str(loop))
+                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+                makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test)
 
 def analysisKNN(TARGET):
 
@@ -1004,7 +1003,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["TianJin"]
+    CITIEs4 = ["BeiJing"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)

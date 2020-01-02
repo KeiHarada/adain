@@ -247,7 +247,7 @@ def makeDataset(cities, model_attribute, lstm_data_width, data_length=None):
 
     print(Color.GREEN + "OK" + Color.END)
 
-def makeTrainData_city(dataPath, savePath):
+def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
 
     # raw data
     stationRaw = pd.read_csv("rawdata/zheng2015/station.csv", dtype=object)
@@ -262,7 +262,7 @@ def makeTrainData_city(dataPath, savePath):
     targetData = pickle.load(open("datatmp/labelData.pkl", "rb"))
 
     # station train
-    tmp = pickle.load(bz2.BZ2File("{}/train_000.pkl.bz2".format(dataPath), 'rb'))
+    tmp = pickle.load(bz2.BZ2File("{}/train_000.pkl.bz2".format(dataPath_train), 'rb'))
     local, tmp = tmp[0][0], tmp[2][0]
     local = [k for k, v in staticData.items() if v == local][0]
     others = list()
@@ -303,6 +303,7 @@ def makeTrainData_city(dataPath, savePath):
     '''
 
     dataNum = 0
+    source_location = list()
     for i in range(len(station_train)):
 
         # location of local city
@@ -311,6 +312,7 @@ def makeTrainData_city(dataPath, savePath):
         cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
         lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
         lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
+        source_location.append((lat_local, lon_local))
 
         # location of other cities
         others_city = list()
@@ -430,28 +432,137 @@ def makeTrainData_city(dataPath, savePath):
                 out_others_city.append(others_city)
                 out_target.append(target[t])
 
-
-            print(np.array(out_local_static).shape)
-            print(np.array(out_local_seq).shape)
-            print(np.array(out_others_static).shape)
-            print(np.array(out_others_seq).shape)
-            print(np.array(out_others_city).shape)
-            print(np.array(out_target).shape)
-            exit()
-
             out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
 
             cityCode = str(i).zfill(3)
             stationCode = str(station_train[i].index(station_local)).zfill(3)
 
-            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath, cityCode, stationCode, 'wb', compresslevel=9)) as fp:
+            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train, cityCode, stationCode, 'wb', compresslevel=9)) as fp:
                 fp.write(pickle.dumps(out_set))
                 print("* save train_{}{}.pkl.bz2".format(cityCode, stationCode))
 
-            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_seq, out_target, out_set
+            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
 
-    with open("{}/fileNum.pkl".format(savePath), "wb") as fp:
+    with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
         pickle.dump({"station": len(station_train[0]), "city": len(station_train), "time": dataNum}, fp)
+
+    '''
+    test data
+    '''
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath_test), "rb"))["test"]
+    for i in range(testNum):
+
+        # output
+        out_others_static = list()
+        out_others_seq = list()
+        out_others_city = list()
+
+        '''
+        calculate distance and angle of other source cities from the target city
+        '''
+
+        tmp = pickle.load(bz2.BZ2File("{}/test_{}.pkl.bz2".format(dataPath_test, str(i).zfill(3)), 'rb'))
+        out_local_static, out_local_seq, out_target, tmp = tmp[0], tmp[1], tmp[4], tmp[0][0]
+
+        # location of local city
+        sid_local = [k for k, v in staticData.items() if v == tmp][0]
+        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
+        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
+
+        others_city = list()
+        max_index = 0
+        max_distance = 0
+        for j in range(len(source_location)):
+            lat, lon = source_location[j]
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            others_city.append([result["distance"], result["azimuth1"]])
+            if result["distance"] > max_distance:
+                max_distance = result["distance"]
+                max_index = j
+
+        others_city.remove(others_city[max_index])
+        station_train.remove(station_train[max_index])
+        others_city = np.array(others_city)
+        minimum = others_city.min(axis=0, keepdims=True)
+        maximum = others_city.max(axis=0, keepdims=True)
+        others_city = (others_city - minimum) / (maximum - minimum)
+        others_city = list(map(lambda x: list(x), others_city))
+
+        '''
+        calculate distance and angle of other stations from local stations
+        '''
+        # lat, lon of local station
+        lat_local = float(stationData[stationData["sid"] == sid_local]["lat"])
+        lon_local = float(stationData[stationData["sid"] == sid_local]["lon"])
+
+        # distance and angle
+        geoVect = list()
+        for j in range(len(station_train)):
+            for station_others_j in station_train[j]:
+                lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
+                lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
+                result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+                geoVect.append([result["distance"], result["azimuth1"]])
+
+        # normalization others' location
+        geoVect = np.array(geoVect)
+        minimum = geoVect.min(axis=0, keepdims=True)
+        maximum = geoVect.max(axis=0, keepdims=True)
+        geoVect = (geoVect - minimum) / (maximum - minimum)
+        geoVect = list(map(lambda x: list(x), geoVect))
+
+        # add geoVect to static data
+        others_static = list()
+        idx = 0
+        for j in range(len(station_train)):
+            others_static_j = list()
+            for station_others_j in station_train[j]:
+                others_static_j.append(staticData[station_others_j] + geoVect[idx])
+                idx += 1
+            others_static.append(others_static_j)
+
+        '''
+        concut meteorological data with aqi data of seqData of others
+        '''
+        seqData_others = dict()
+        for j in range(len(station_train)):
+            for station_others_j in station_train[j]:
+                m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
+                a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
+                for k in range(len(m)):
+                    for l in range(len(m[k])):
+                        m[k][l] += a[k][l]
+                seqData_others[station_others_j] = m
+
+        '''
+        output set
+        '''
+        dataNum = len(out_target)
+        for t in range(dataNum):
+
+            others_seq = list()
+            for j in range(len(station_train)):
+                others_seq_j = list()
+                for station_others_j in station_train[j]:
+                    others_seq_j.append(seqData_others[station_others_j][t])
+                others_seq.append(others_seq_j)
+
+            out_others_static.append(others_static)
+            out_others_seq.append(others_seq)
+            out_others_city.append(others_city)
+
+        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
+
+        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(i).zfill(3), 'wb', compresslevel=9)) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save test_{}.pkl.bz2".format(str(i).zfill(3)))
+
+        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
+
+    with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
+       pickle.dump({"station": len(station_train[0]), "city": len(station_train)+1, "time": dataNum}, fp)
 
 def makeTrainData(savePath, station_train):
 
