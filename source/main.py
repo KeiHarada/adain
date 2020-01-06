@@ -1002,7 +1002,7 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["BeiJing"]
+    CITIEs4 = ["GuangZhou"]
     cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
