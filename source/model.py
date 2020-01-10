@@ -271,15 +271,23 @@ class HARADA(nn.Module):
         self.attention_city2.to(device)
 
         # |- fusion
-        self.fusion = list()
-        self.output = list()
-        for i in range(cityNum):
-            self.fusion.append(nn.Linear(self.fc_attention_station_hidden, self.fc_attention_station_hidden))
-            self.output.append(nn.Linear(self.fc_attention_station_hidden, 1))
-            nn.init.uniform_(self.fusion[i].weight, -0.1, 0.1)
-            nn.init.uniform_(self.output[i].weight, -0.1, 0.1)
-            self.fusion[i].to(device)
-            self.output[i].to(device)
+        self.fusion = nn.Linear(self.fc_attention_station_hidden, self.fc_attention_station_hidden)
+        self.output = nn.Linear(self.fc_attention_station_hidden, 1)
+        nn.init.uniform_(self.fusion.weight, -0.1, 0.1)
+        nn.init.uniform_(self.output.weight, -0.1, 0.1)
+        self.fusion.to(device)
+        self.output.to(device)
+
+        # # |- fusion
+        # self.fusion = list()
+        # self.output = list()
+        # for i in range(cityNum):
+        #     self.fusion.append(nn.Linear(self.fc_attention_station_hidden, self.fc_attention_station_hidden))
+        #     self.output.append(nn.Linear(self.fc_attention_station_hidden, 1))
+        #     nn.init.uniform_(self.fusion[i].weight, -0.1, 0.1)
+        #     nn.init.uniform_(self.output[i].weight, -0.1, 0.1)
+        #     self.fusion[i].to(device)
+        #     self.output[i].to(device)
 
     def initial_hidden(self, data_size):
         '''
@@ -398,9 +406,9 @@ class HARADA(nn.Module):
             y_others_i = (attention_station_i * y_others_i).sum(dim=0)
 
             # output layer
-            y_i = F.relu(self.fusion[i](torch.cat([y_local, y_others_i], dim=1)))
+            y_i = F.relu(self.fusion(torch.cat([y_local, y_others_i], dim=1)))
             y_i = self.drop_fusion(y_i)
-            y_i = self.output[i](y_i)
+            y_i = self.output(y_i)
             y_mtl.append(y_i)
 
         # give other cities attention score

@@ -302,154 +302,6 @@ def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
     labelData_t = target_t
     '''
 
-    dataNum = 0
-    source_location = list()
-    for i in range(len(station_train)):
-
-        # location of local city
-        sid_local = station_train[i][0]
-        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
-        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
-        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
-        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
-        source_location.append((lat_local, lon_local))
-
-        # location of other cities
-        others_city = list()
-        for j in range(len(station_train)):
-
-            if i == j:
-                continue
-
-            sid = station_train[j][0]
-            did = list(stationRaw[stationRaw["station_id"] == sid]["district_id"])[0]
-            cid = list(districtRaw[districtRaw["district_id"] == did]["city_id"])[0]
-            lat = float(cityRaw[cityRaw["city_id"] == cid]["latitude"])
-            lon = float(cityRaw[cityRaw["city_id"] == cid]["longitude"])
-            result = get_dist_angle(lat_local, lon_local, lat, lon)
-            others_city.append([result["distance"], result["azimuth1"]])
-
-        others_city = np.array(others_city)
-        minimum = others_city.min(axis=0, keepdims=True)
-        maximum = others_city.max(axis=0, keepdims=True)
-        others_city = (others_city - minimum) / (maximum - minimum)
-        others_city = list(map(lambda x: list(x), others_city))
-
-        for station_local in station_train[i]:
-
-            # output
-            out_local_static = list()
-            out_local_seq = list()
-            out_others_static = list()
-            out_others_seq = list()
-            out_others_city = list()
-            out_target = list()
-
-            '''
-            calculate distance and angle of other stations from local stations
-            '''
-            # lat, lon of local station
-            lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
-            lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
-
-            # distance and angle
-            geoVect = list()
-            for j in range(len(station_train)):
-
-                if i == j:
-                    continue
-
-                for station_others_j in station_train[j]:
-                    lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
-                    lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
-                    result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-                    geoVect.append([result["distance"], result["azimuth1"]])
-
-            # normalization others' location
-            geoVect = np.array(geoVect)
-            minimum = geoVect.min(axis=0, keepdims=True)
-            maximum = geoVect.max(axis=0, keepdims=True)
-            geoVect = (geoVect - minimum) / (maximum - minimum)
-            geoVect = list(map(lambda x: list(x), geoVect))
-
-            # add geoVect to static data
-            others_static = list()
-            idx = 0
-            for j in range(len(station_train)):
-
-                if i == j:
-                    continue
-
-                others_static_j = list()
-                for station_others_j in station_train[j]:
-                    others_static_j.append(staticData[station_others_j] + geoVect[idx])
-                    idx += 1
-                others_static.append(others_static_j)
-
-            '''
-            concut meteorological data with aqi data of seqData of others
-            '''
-            seqData_others = dict()
-            for j in range(len(station_train)):
-
-                if i == j:
-                    continue
-
-                for station_others_j in station_train[j]:
-                    m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
-                    a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
-                    for k in range(len(m)):
-                        for l in range(len(m[k])):
-                            m[k][l] += a[k][l]
-                    seqData_others[station_others_j] = m
-
-            '''
-            local data and target data
-            '''
-            local_static = staticData[station_local]
-            local_seq = meteorologyData[station_local]
-            target = targetData[station_local]
-            dataNum = len(target)
-
-            for t in range(dataNum):
-
-                others_seq = list()
-
-                for j in range(len(station_train)):
-
-                    if i == j:
-                        continue
-
-                    others_seq_j = list()
-                    for station_others_j in station_train[j]:
-                        others_seq_j.append(seqData_others[station_others_j][t])
-                    others_seq.append(others_seq_j)
-
-                out_local_static.append(local_static)
-                out_local_seq.append(local_seq[t])
-                out_others_static.append(others_static)
-                out_others_seq.append(others_seq)
-                out_others_city.append(others_city)
-                out_target.append(target[t])
-
-            out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
-
-            cityCode = str(i).zfill(3)
-            stationCode = str(station_train[i].index(station_local)).zfill(3)
-
-            with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train, cityCode, stationCode), 'wb', compresslevel=9) as fp:
-                fp.write(pickle.dumps(out_set))
-                print("* save train_{}{}.pkl.bz2".format(cityCode, stationCode))
-
-            del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
-
-    with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
-        pickle.dump({"station": len(station_train[0]), "city": len(station_train), "time": dataNum}, fp)
-
-    # '''
-    # test data
-    # '''
-    #
     # dataNum = 0
     # source_location = list()
     # for i in range(len(station_train)):
@@ -462,121 +314,269 @@ def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
     #     lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
     #     source_location.append((lat_local, lon_local))
     #
-    # testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath_test), "rb"))["test"]
-    # for i in range(testNum):
-    #
-    #     # output
-    #     out_others_static = list()
-    #     out_others_seq = list()
-    #     out_others_city = list()
-    #
-    #     '''
-    #     calculate distance and angle of other source cities from the target city
-    #     '''
-    #
-    #     tmp = pickle.load(bz2.BZ2File("{}/test_{}.pkl.bz2".format(dataPath_test, str(i).zfill(3)), 'rb'))
-    #     out_local_static, out_local_seq, out_target, tmp = tmp[0], tmp[1], tmp[4], tmp[0][0]
-    #
-    #     # location of local city
-    #     sid_local = [k for k, v in staticData.items() if v == tmp][0]
-    #     did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
-    #     cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
-    #     lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
-    #     lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
-    #
+    #     # location of other cities
     #     others_city = list()
-    #     max_index = 0
-    #     max_distance = 0
-    #     for j in range(len(source_location)):
-    #         lat, lon = source_location[j]
-    #         result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-    #         others_city.append([result["distance"], result["azimuth1"]])
-    #         if result["distance"] > max_distance:
-    #             max_distance = result["distance"]
-    #             max_index = j
+    #     for j in range(len(station_train)):
     #
-    #     station_train_copy = station_train.copy()
-    #     others_city.remove(others_city[max_index])
-    #     station_train_copy.remove(station_train_copy[max_index])
+    #         if i == j:
+    #             continue
+    #
+    #         sid = station_train[j][0]
+    #         did = list(stationRaw[stationRaw["station_id"] == sid]["district_id"])[0]
+    #         cid = list(districtRaw[districtRaw["district_id"] == did]["city_id"])[0]
+    #         lat = float(cityRaw[cityRaw["city_id"] == cid]["latitude"])
+    #         lon = float(cityRaw[cityRaw["city_id"] == cid]["longitude"])
+    #         result = get_dist_angle(lat_local, lon_local, lat, lon)
+    #         others_city.append([result["distance"], result["azimuth1"]])
+    #
     #     others_city = np.array(others_city)
     #     minimum = others_city.min(axis=0, keepdims=True)
     #     maximum = others_city.max(axis=0, keepdims=True)
     #     others_city = (others_city - minimum) / (maximum - minimum)
     #     others_city = list(map(lambda x: list(x), others_city))
     #
-    #     '''
-    #     calculate distance and angle of other stations from local stations
-    #     '''
-    #     # lat, lon of local station
-    #     lat_local = float(stationData[stationData["sid"] == sid_local]["lat"])
-    #     lon_local = float(stationData[stationData["sid"] == sid_local]["lon"])
+    #     for station_local in station_train[i]:
     #
-    #     # distance and angle
-    #     geoVect = list()
-    #     for j in range(len(station_train_copy)):
-    #         for station_others_j in station_train_copy[j]:
-    #             lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
-    #             lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
-    #             result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
-    #             geoVect.append([result["distance"], result["azimuth1"]])
+    #         # output
+    #         out_local_static = list()
+    #         out_local_seq = list()
+    #         out_others_static = list()
+    #         out_others_seq = list()
+    #         out_others_city = list()
+    #         out_target = list()
     #
-    #     # normalization others' location
-    #     geoVect = np.array(geoVect)
-    #     minimum = geoVect.min(axis=0, keepdims=True)
-    #     maximum = geoVect.max(axis=0, keepdims=True)
-    #     geoVect = (geoVect - minimum) / (maximum - minimum)
-    #     geoVect = list(map(lambda x: list(x), geoVect))
+    #         '''
+    #         calculate distance and angle of other stations from local stations
+    #         '''
+    #         # lat, lon of local station
+    #         lat_local = float(stationData[stationData["sid"] == station_local]["lat"])
+    #         lon_local = float(stationData[stationData["sid"] == station_local]["lon"])
     #
-    #     # add geoVect to static data
-    #     others_static = list()
-    #     idx = 0
-    #     for j in range(len(station_train_copy)):
-    #         others_static_j = list()
-    #         for station_others_j in station_train_copy[j]:
-    #             others_static_j.append(staticData[station_others_j] + geoVect[idx])
-    #             idx += 1
-    #         others_static.append(others_static_j)
+    #         # distance and angle
+    #         geoVect = list()
+    #         for j in range(len(station_train)):
     #
-    #     '''
-    #     concut meteorological data with aqi data of seqData of others
-    #     '''
-    #     seqData_others = dict()
-    #     for j in range(len(station_train_copy)):
-    #         for station_others_j in station_train_copy[j]:
-    #             m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
-    #             a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
-    #             for k in range(len(m)):
-    #                 for l in range(len(m[k])):
-    #                     m[k][l] += a[k][l]
-    #             seqData_others[station_others_j] = m
+    #             if i == j:
+    #                 continue
     #
-    #     '''
-    #     output set
-    #     '''
-    #     dataNum = len(out_target)
-    #     for t in range(dataNum):
+    #             for station_others_j in station_train[j]:
+    #                 lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
+    #                 lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
+    #                 result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+    #                 geoVect.append([result["distance"], result["azimuth1"]])
     #
-    #         others_seq = list()
-    #         for j in range(len(station_train_copy)):
-    #             others_seq_j = list()
-    #             for station_others_j in station_train_copy[j]:
-    #                 others_seq_j.append(seqData_others[station_others_j][t])
-    #             others_seq.append(others_seq_j)
+    #         # normalization others' location
+    #         geoVect = np.array(geoVect)
+    #         minimum = geoVect.min(axis=0, keepdims=True)
+    #         maximum = geoVect.max(axis=0, keepdims=True)
+    #         geoVect = (geoVect - minimum) / (maximum - minimum)
+    #         geoVect = list(map(lambda x: list(x), geoVect))
     #
-    #         out_others_static.append(others_static)
-    #         out_others_seq.append(others_seq)
-    #         out_others_city.append(others_city)
+    #         # add geoVect to static data
+    #         others_static = list()
+    #         idx = 0
+    #         for j in range(len(station_train)):
     #
-    #     out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
+    #             if i == j:
+    #                 continue
     #
-    #     with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(i).zfill(3)), 'wb', compresslevel=9) as fp:
-    #         fp.write(pickle.dumps(out_set))
-    #         print("* save test_{}.pkl.bz2".format(str(i).zfill(3)))
+    #             others_static_j = list()
+    #             for station_others_j in station_train[j]:
+    #                 others_static_j.append(staticData[station_others_j] + geoVect[idx])
+    #                 idx += 1
+    #             others_static.append(others_static_j)
     #
-    #     del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
+    #         '''
+    #         concut meteorological data with aqi data of seqData of others
+    #         '''
+    #         seqData_others = dict()
+    #         for j in range(len(station_train)):
     #
-    # with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
-    #    pickle.dump({"station": len(station_train[0]), "city": len(station_train)+1, "time": dataNum}, fp)
+    #             if i == j:
+    #                 continue
+    #
+    #             for station_others_j in station_train[j]:
+    #                 m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
+    #                 a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
+    #                 for k in range(len(m)):
+    #                     for l in range(len(m[k])):
+    #                         m[k][l] += a[k][l]
+    #                 seqData_others[station_others_j] = m
+    #
+    #         '''
+    #         local data and target data
+    #         '''
+    #         local_static = staticData[station_local]
+    #         local_seq = meteorologyData[station_local]
+    #         target = targetData[station_local]
+    #         dataNum = len(target)
+    #
+    #         for t in range(dataNum):
+    #
+    #             others_seq = list()
+    #
+    #             for j in range(len(station_train)):
+    #
+    #                 if i == j:
+    #                     continue
+    #
+    #                 others_seq_j = list()
+    #                 for station_others_j in station_train[j]:
+    #                     others_seq_j.append(seqData_others[station_others_j][t])
+    #                 others_seq.append(others_seq_j)
+    #
+    #             out_local_static.append(local_static)
+    #             out_local_seq.append(local_seq[t])
+    #             out_others_static.append(others_static)
+    #             out_others_seq.append(others_seq)
+    #             out_others_city.append(others_city)
+    #             out_target.append(target[t])
+    #
+    #         out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
+    #
+    #         cityCode = str(i).zfill(3)
+    #         stationCode = str(station_train[i].index(station_local)).zfill(3)
+    #
+    #         with bz2.BZ2File("{}/train_{}{}.pkl.bz2".format(savePath_train, cityCode, stationCode), 'wb', compresslevel=9) as fp:
+    #             fp.write(pickle.dumps(out_set))
+    #             print("* save train_{}{}.pkl.bz2".format(cityCode, stationCode))
+    #
+    #         del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
+    #
+    # with open("{}/fileNum.pkl".format(savePath_train), "wb") as fp:
+    #     pickle.dump({"station": len(station_train[0]), "city": len(station_train), "time": dataNum}, fp)
+
+    '''
+    test data
+    '''
+
+    dataNum = 0
+    source_location = list()
+    for i in range(len(station_train)):
+
+        # location of local city
+        sid_local = station_train[i][0]
+        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
+        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
+        source_location.append((lat_local, lon_local))
+
+    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath_test), "rb"))["test"]
+    for i in range(testNum):
+
+        # output
+        out_others_static = list()
+        out_others_seq = list()
+        out_others_city = list()
+
+        '''
+        calculate distance and angle of other source cities from the target city
+        '''
+
+        tmp = pickle.load(bz2.BZ2File("{}/test_{}.pkl.bz2".format(dataPath_test, str(i).zfill(3)), 'rb'))
+        out_local_static, out_local_seq, out_target, tmp = tmp[0], tmp[1], tmp[4], tmp[0][0]
+
+        # location of local city
+        sid_local = [k for k, v in staticData.items() if v == tmp][0]
+        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
+        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
+
+        others_city = list()
+        max_index = 0
+        max_distance = 0
+        for j in range(len(source_location)):
+            lat, lon = source_location[j]
+            result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+            others_city.append([result["distance"], result["azimuth1"]])
+            if result["distance"] > max_distance:
+                max_distance = result["distance"]
+                max_index = j
+
+        station_train_copy = station_train.copy()
+        others_city.remove(others_city[max_index])
+        station_train_copy.remove(station_train_copy[max_index])
+        others_city = np.array(others_city)
+        minimum = others_city.min(axis=0, keepdims=True)
+        maximum = others_city.max(axis=0, keepdims=True)
+        others_city = (others_city - minimum) / (maximum - minimum)
+        others_city = list(map(lambda x: list(x), others_city))
+
+        '''
+        calculate distance and angle of other stations from local stations
+        '''
+        # lat, lon of local station
+        lat_local = float(stationData[stationData["sid"] == sid_local]["lat"])
+        lon_local = float(stationData[stationData["sid"] == sid_local]["lon"])
+
+        # distance and angle
+        geoVect = list()
+        for j in range(len(station_train_copy)):
+            for station_others_j in station_train_copy[j]:
+                lat = float(stationData[stationData["sid"] == station_others_j]["lat"])
+                lon = float(stationData[stationData["sid"] == station_others_j]["lon"])
+                result = get_dist_angle(lat1=lat_local, lon1=lon_local, lat2=lat, lon2=lon)
+                geoVect.append([result["distance"], result["azimuth1"]])
+
+        # normalization others' location
+        geoVect = np.array(geoVect)
+        minimum = geoVect.min(axis=0, keepdims=True)
+        maximum = geoVect.max(axis=0, keepdims=True)
+        geoVect = (geoVect - minimum) / (maximum - minimum)
+        geoVect = list(map(lambda x: list(x), geoVect))
+
+        # add geoVect to static data
+        others_static = list()
+        idx = 0
+        for j in range(len(station_train_copy)):
+            others_static_j = list()
+            for station_others_j in station_train_copy[j]:
+                others_static_j.append(staticData[station_others_j] + geoVect[idx])
+                idx += 1
+            others_static.append(others_static_j)
+
+        '''
+        concut meteorological data with aqi data of seqData of others
+        '''
+        seqData_others = dict()
+        for j in range(len(station_train_copy)):
+            for station_others_j in station_train_copy[j]:
+                m = _pickle.loads(_pickle.dumps(meteorologyData[station_others_j], -1))  # _pickleを使った高速コピー
+                a = _pickle.loads(_pickle.dumps(aqiData[station_others_j], -1))  # _pickleを使った高速コピー
+                for k in range(len(m)):
+                    for l in range(len(m[k])):
+                        m[k][l] += a[k][l]
+                seqData_others[station_others_j] = m
+
+        '''
+        output set
+        '''
+        dataNum = len(out_target)
+        for t in range(dataNum):
+
+            others_seq = list()
+            for j in range(len(station_train_copy)):
+                others_seq_j = list()
+                for station_others_j in station_train_copy[j]:
+                    others_seq_j.append(seqData_others[station_others_j][t])
+                others_seq.append(others_seq_j)
+
+            out_others_static.append(others_static)
+            out_others_seq.append(others_seq)
+            out_others_city.append(others_city)
+
+        out_set = (out_local_static, out_local_seq, out_others_static, out_others_seq, out_others_city, out_target)
+
+        with bz2.BZ2File("{}/test_{}.pkl.bz2".format(savePath_test, str(i).zfill(3)), 'wb', compresslevel=9) as fp:
+            fp.write(pickle.dumps(out_set))
+            print("* save test_{}.pkl.bz2".format(str(i).zfill(3)))
+
+        del out_local_seq, out_local_static, out_others_seq, out_others_static, out_others_city, out_target, out_set
+
+    with open("{}/fileNum.pkl".format(savePath_test), "wb") as fp:
+       pickle.dump({"station": len(station_train[0]), "city": len(station_train)+1, "time": dataNum}, fp)
 
 def makeTrainData(savePath, station_train):
 
@@ -1173,27 +1173,28 @@ def objective_HARADA(trial):
     # hyper parameters for constance
     alpha = 0.5
     beta = 1
-    batch_size = 64
-    epochs = 10
+    batch_size = 32
+    epochs = 50
     lr = 0.01
     wd = 0.0005
 
     # dataset path
     dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
+    mmdPath = pickle.load(open("tmp/testPath.pkl", "rb"))
 
     # input dimension
     inputDim = pickle.load(open("datatmp/inputDim.pkl", "rb"))
     cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
     stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
     dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
-    batchNum = math.ceil(dataNum/ batch_size)
+    batchNum = int(math.ceil(dataNum / batch_size))
 
     # model
     model = HARADA(inputDim_local_static=inputDim["local_static"],
                    inputDim_local_seq=inputDim["local_seq"],
                    inputDim_others_static=inputDim["others_static"],
                    inputDim_others_seq=inputDim["others_seq"],
-                   cityNum=18,
+                   cityNum=cityNum-1,
                    stationNum=stationNum)
 
     # GPU or CPU
@@ -1207,133 +1208,116 @@ def objective_HARADA(trial):
     criterion_mtl = nn.MSELoss()
     criterion_mmd = SamplesLoss("gaussian")
 
-    # initialize the early stopping object
-    patience = 50
-    early_stopping = EarlyStopping(patience=patience, verbose=True)
-
     # log
     logs = list()
+
+    # mmd data
+    mmdData = list()
+    for station_id in range(stationNum):
+        selectPath = "/test_{}.pkl.bz2".format(str(station_id).zfill(3))
+        mmdData.append(MyDataset_MMD(pickle.load(bz2.BZ2File(mmdPath + selectPath, 'rb'))[:2]))
 
     # start training
     for step in range(int(epochs)):
 
+        # epoch loss
         epoch_loss = list()
 
-        for batch_id in range(batchNum-1):
+        # random data selecor
+        dataSelector = list(np.array([random.sample(list(range(len(stationNum))), len(stationNum)) for i in range(cityNum)]).transpose())
 
-            print("\t|- batch loss: ", end="")
+        for dataSelector_i in dataSelector:
 
-            # loss
-            loss_mtl = 0
-            loss_moe = 0
-            mmd_source = list()
+            # repeat loss
+            repeat_loss = list()
 
-            for source_selector in range(cityNum):
+            # train data
+            trainData = list()
+            for city_id in range(len(dataSelector_i)):
+                selectPath = "/train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(dataSelector_i[city_id]).zfill(3))
+                trainData.append(MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb'))))
 
+            # training
+            for batch_id in range(batchNum):
+
+                print("\t|- batch train loss: ", end="")
+
+                # loss
+                loss_mtl = 0
+                loss_moe = 0
+                mmd_source = list()
+
+                for city_id in range(len(dataSelector_i)):
+                    batch_i = torch.utils.data.DataLoader(trainData[city_id], batch_size=batch_size, shuffle=False)[batch_id]
+
+                    # batch data
+                    batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, batch_target = batch_i
+
+                    # to GPU
+                    batch_local_static = batch_local_static.to(device)
+                    batch_local_seq = batch_local_seq.to(device)
+                    batch_others_static = batch_others_static.to(device)
+                    batch_others_seq = batch_others_seq.to(device)
+                    batch_others_city = batch_others_city.to(device)
+                    batch_target = batch_target.to(device)
+
+                    # predict
+                    y_moe, y_mtl, mmd = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+
+                    loss_moe += criterion_moe(y_moe, batch_target)
+                    for y_mtl_i in y_mtl:
+                        loss_mtl += criterion_mtl(y_mtl_i, batch_target)
+                    mmd_source.append(mmd)
+
+                # mmd target
                 batch_local_static = list()
                 batch_local_seq = list()
-                batch_others_static = list()
-                batch_others_seq = list()
-                batch_others_city = list()
-                batch_target = list()
-
-                for data_selector in range(stationNum):
-                    selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
-                    trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-                    trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batch_id]
-
-                    # add to batch data
-                    batch_local_static.append(trainData[0])
-                    batch_local_seq.append(trainData[1])
-                    batch_others_static.append(trainData[2])
-                    batch_others_seq.append(trainData[3])
-                    batch_others_city.append(trainData[4])
-                    batch_target.append(trainData[5])
+                for station_id in range(stationNum):
+                    mmdData_i = list(torch.utils.data.DataLoader(mmdData[station_id], batch_size=batch_size, shuffle=False))[batch_id]
+                    batch_local_static.append(mmdData_i[0])
+                    batch_local_seq.append(mmdData_i[1])
 
                 # stack
                 batch_local_static = torch.cat(batch_local_static, dim=0)
                 batch_local_seq = torch.cat(batch_local_seq, dim=0)
-                batch_others_static = torch.cat(batch_others_static, dim=0)
-                batch_others_seq = torch.cat(batch_others_seq, dim=0)
-                batch_others_city = torch.cat(batch_others_city, dim=0)
-                batch_target = torch.cat(batch_target, dim=0)
 
                 # to GPU
                 batch_local_static = batch_local_static.to(device)
                 batch_local_seq = batch_local_seq.to(device)
-                batch_others_static = batch_others_static.to(device)
-                batch_others_seq = batch_others_seq.to(device)
-                batch_others_city = batch_others_city.to(device)
-                batch_target = batch_target.to(device)
 
-                # predict
-                y_moe, y_mtl, mmd = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+                # calculate mmd loss
+                mmd_target = model.encode(batch_local_static, batch_local_seq)
+                mmd_source = torch.cat(mmd_source, dim=0)
 
-                loss_moe += criterion_moe(y_moe, batch_target)
-                for y_mtl_i in y_mtl:
-                    loss_mtl += criterion_mtl(y_mtl_i, batch_target)
-                mmd_source.append(mmd)
+                loss_mmd = criterion_mmd(mmd_target, mmd_source)
 
-            # mmd loss
-            batch_local_static = list()
-            batch_local_seq = list()
+                # calculate loss, back-propagate loss, and step optimizer
+                optimizer.zero_grad()
+                loss = alpha*loss_moe + (1-alpha)*loss_mtl + beta*loss_mmd
+                loss.backward()
+                optimizer.step()
 
-            for data_selector in range(stationNum):
-                selectPath = "/mmd_{}.pkl.bz2".format(str(data_selector).zfill(3))
-                mmdData = MyDataset_MMD(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-                mmdData = list(torch.utils.data.DataLoader(mmdData, batch_size=batch_size, shuffle=False))[batch_id]
+                # print a batch loss as RMSE
+                print("%.10f" % (loss.item()))
 
-                # add to batch data
-                batch_local_static.append(mmdData[0])
-                batch_local_seq.append(mmdData[1])
+                # append batch loss to the list to calculate epoch loss
+                repeat_loss.append(loss.item())
 
-            # stack
-            batch_local_static = torch.cat(batch_local_static, dim=0)
-            batch_local_seq = torch.cat(batch_local_seq, dim=0)
-
-            # to GPU
-            batch_local_static = batch_local_static.to(device)
-            batch_local_seq = batch_local_seq.to(device)
-
-            # calculate mmd loss
-            mmd_target = model.encode(batch_local_static, batch_local_seq)
-            mmd_source = torch.cat(mmd_source, dim=0)
-
-            loss_mmd = criterion_mmd(mmd_target, mmd_source)
-
-            # calculate loss, back-propagate loss, and step optimizer
-            optimizer.zero_grad()
-            loss = alpha*loss_moe + (1-alpha)*loss_mtl + beta*loss_mmd
-            loss.backward()
-            optimizer.step()
-
-            # print a batch loss as RMSE
-            print("%.10f" % (loss.item()))
-
-            # append batch loss to the list to calculate epoch loss
-            epoch_loss.append(loss.item())
+            repeat_loss = np.average(repeat_loss)
+            epoch_loss.append(repeat_loss)
+            print("\t\t|- repat %d train loss: %.10f" % (dataSelector.index(dataSelector_i) + 1, repeat_loss))
 
         epoch_loss = np.average(epoch_loss)
-        print("\t\t|- epoch %d loss: %.10f" % (step + 1, epoch_loss))
+        print("\t\t\t|- epoch %d train loss: %.10f" % (step + 1, epoch_loss))
 
-        # validate
-        print("\t\t|- validation : ", end="")
+        # evaluate
+        print("\t\t\t|- evaluation score : ", end="")
         model.eval()
-        rmse, accuracy = validate_HARADA(model, batch_size)
+        rmse, accuracy = midium_evaluate_HARADA(model)
         model.train()
-        log = {'epoch': step, 'validation rmse': rmse, 'validation accuracy': accuracy}
+        log = {'epoch': step, 'train_rmse': epoch_loss, 'test_rmse': rmse}
         logs.append(log)
         print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
-
-        # early stopping
-        early_stopping(rmse, model)
-        if early_stopping.early_stop:
-            print("\t\tEarly stopping")
-            break
-
-    # load the last checkpoint after early stopping
-    model.load_state_dict(torch.load("tmp/checkpoint.pt"))
-    rmse = early_stopping.val_loss_min
 
     # save model
     trial_num = trial.number
@@ -1345,73 +1329,57 @@ def objective_HARADA(trial):
     with open("tmp/{}_log.pkl".format(str(trial_num).zfill(4)), "wb") as pl:
         pickle.dump(logs, pl)
 
-    return rmse
+    return epoch_loss
 
-def validate_HARADA(model, batch_size):
+def midium_evaluate_HARADA(model):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    batch_size = 256
+    iteration = 0
+
     # dataset path
-    dataPath = pickle.load(open("tmp/trainPath.pkl", "rb"))
-    cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
+    dataPath = pickle.load(open("tmp/testPath.pkl", "rb"))
     stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
     dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
-    batchNum = math.ceil(dataNum/ batch_size)
 
     # for evaluation
     result = list()
     result_label = list()
 
-    for source_selector in range(cityNum):
+    for station_id in range(len(stationNum)):
+        selectPath = "/test_{}.pkl.bz2".format(str(station_id).zfill(3))
+        testData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+        for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
 
-        batch_local_static = list()
-        batch_local_seq = list()
-        batch_others_static = list()
-        batch_others_seq = list()
-        batch_others_city = list()
-        batch_target = list()
+            # batch data
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, batch_target = batch_i
 
-        for data_selector in range(stationNum):
-            selectPath = "/train_{}{}.pkl.bz2".format(str(source_selector).zfill(3), str(data_selector).zfill(3))
-            trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-            trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batchNum - 1]
+            # to GPU
+            batch_local_static = batch_local_static.to(device)
+            batch_local_seq = batch_local_seq.to(device)
+            batch_others_static = batch_others_static.to(device)
+            batch_others_seq = batch_others_seq.to(device)
+            batch_others_city = batch_others_city.to(device)
+            batch_target = batch_target.to(device)
 
-            # add to batch data
-            batch_local_static.append(trainData[0])
-            batch_local_seq.append(trainData[1])
-            batch_others_static.append(trainData[2])
-            batch_others_seq.append(trainData[3])
-            batch_others_city.append(trainData[4])
-            batch_target.append(trainData[5])
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
+            pred = pred.to("cpu")
 
-        # stack
-        batch_local_static = torch.cat(batch_local_static, dim=0)
-        batch_local_seq = torch.cat(batch_local_seq, dim=0)
-        batch_others_static = torch.cat(batch_others_static, dim=0)
-        batch_others_seq = torch.cat(batch_others_seq, dim=0)
-        batch_others_city = torch.cat(batch_others_city, dim=0)
-        batch_target = torch.cat(batch_target, dim=0)
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            result += pred
+            result_label += batch_target
 
-        # to GPU
-        batch_local_static = batch_local_static.to(device)
-        batch_local_seq = batch_local_seq.to(device)
-        batch_others_static = batch_others_static.to(device)
-        batch_others_seq = batch_others_seq.to(device)
-        batch_others_city = batch_others_city.to(device)
+            iteration += len(batch_target)
+            print("\t|- iteration %d / %d" % (iteration, dataNum * stationNum))
 
-        # predict
-        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
-        pred = pred.to("cpu")
-
-        # evaluate
-        pred = list(map(lambda x: x[0], pred.data.numpy()))
-        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-        result += pred
-        result_label += batch_target
-
-    # validation score
+    # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))
     accuracy = calc_correct(result, result_label) / len(result)
+    print("rmse: %.10f, accuracy: %.10f" % (rmse, accuracy))
 
     return rmse, accuracy
 
@@ -1419,7 +1387,7 @@ def evaluate_HARADA(model_state_dict):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    batch_size = 64
+    batch_size = 256
     iteration = 0
 
     # dataset path
@@ -1430,7 +1398,6 @@ def evaluate_HARADA(model_state_dict):
     cityNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["city"]
     stationNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["station"]
     dataNum = pickle.load(open("{}/fileNum.pkl".format(dataPath), "rb"))["time"]
-    batchNum = math.ceil(dataNum/ batch_size)
 
     # model
     model = HARADA(inputDim_local_static=inputDim["local_static"],
@@ -1450,57 +1417,33 @@ def evaluate_HARADA(model_state_dict):
     result = list()
     result_label = list()
 
-    for batch_id in range(batchNum):
+    for station_id in range(len(stationNum)):
+        selectPath = "/test_{}.pkl.bz2".format(str(station_id).zfill(3))
+        testData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
+        for batch_i in torch.utils.data.DataLoader(testData, batch_size=batch_size, shuffle=False):
+            # batch data
+            batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, batch_target = batch_i
 
-        print("\t|- batch loss: ", end="")
+            # to GPU
+            batch_local_static = batch_local_static.to(device)
+            batch_local_seq = batch_local_seq.to(device)
+            batch_others_static = batch_others_static.to(device)
+            batch_others_seq = batch_others_seq.to(device)
+            batch_others_city = batch_others_city.to(device)
+            batch_target = batch_target.to(device)
 
-        batch_local_static = list()
-        batch_local_seq = list()
-        batch_others_static = list()
-        batch_others_seq = list()
-        batch_others_city = list()
-        batch_target = list()
+            # predict
+            pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
+            pred = pred.to("cpu")
 
-        for data_selector in range(stationNum):
-            selectPath = "/test_{}.pkl.bz2".format(str(data_selector).zfill(3))
-            trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(dataPath + selectPath, 'rb')))
-            trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))[batch_id]
+            # evaluate
+            pred = list(map(lambda x: x[0], pred.data.numpy()))
+            batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
+            result += pred
+            result_label += batch_target
 
-            # add to batch data
-            batch_local_static.append(trainData[0])
-            batch_local_seq.append(trainData[1])
-            batch_others_static.append(trainData[2])
-            batch_others_seq.append(trainData[3])
-            batch_others_city.append(trainData[4])
-            batch_target.append(trainData[5])
-
-        # stack
-        batch_local_static = torch.cat(batch_local_static, dim=0)
-        batch_local_seq = torch.cat(batch_local_seq, dim=0)
-        batch_others_static = torch.cat(batch_others_static, dim=0)
-        batch_others_seq = torch.cat(batch_others_seq, dim=0)
-        batch_others_city = torch.cat(batch_others_city, dim=0)
-        batch_target = torch.cat(batch_target, dim=0)
-
-        # to GPU
-        batch_local_static = batch_local_static.to(device)
-        batch_local_seq = batch_local_seq.to(device)
-        batch_others_static = batch_others_static.to(device)
-        batch_others_seq = batch_others_seq.to(device)
-        batch_others_city = batch_others_city.to(device)
-
-        # predict
-        pred = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)[0]
-        pred = pred.to("cpu")
-
-        # evaluate
-        pred = list(map(lambda x: x[0], pred.data.numpy()))
-        batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-        result += pred
-        result_label += batch_target
-
-        iteration += len(batch_target)
-        print("\t|- iteration %d / %d" % (iteration, dataNum*stationNum))
+            iteration += len(batch_target)
+            print("\t|- iteration %d / %d" % (iteration, dataNum * stationNum))
 
     # evaluation score
     rmse = np.sqrt(mean_squared_error(result, result_label))

@@ -346,11 +346,11 @@ def expProposal(TRIAL, TARGET):
     提案手法
     '''
 
-    # to evaluate
-    rmse_list = list()
-    accuracy_list = list()
+    # # to evaluate
+    # rmse_list = list()
+    # accuracy_list = list()
 
-    for loop in range(2, 3):
+    for loop in range(1, 4):
         start = time.time()
         print("----------------")
         print("* SOURCE: All{}".format(str(loop)))
@@ -361,12 +361,11 @@ def expProposal(TRIAL, TARGET):
         with open("tmp/testPath.pkl", "wb") as fp:
             pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
 
-        # training & parameter tuning by optuna
-        # -- activate function, optimizer, eopchs, batch size
+        # training & parameter tuning by optuna: activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
         study.optimize(objective_HARADA, n_trials=TRIAL)
 
-        # save best model
+        # save model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
         pickle.dump(model_state_dict, open("model/{}Test19_city_{}.pkl".format(TARGET, str(loop)), "wb"))
 
@@ -374,33 +373,33 @@ def expProposal(TRIAL, TARGET):
         log = pickle.load(open("tmp/{}_log.pkl".format(str(study.best_trial.number).zfill(4)), "rb"))
         log.to_csv("log/{}Test19_city_{}.csv".format(TARGET, str(loop)), index=False)
 
-        # load best model
-        model_state_dict = pickle.load(open("model/{}Test19_city_{}.pkl".format(TARGET, str(loop)), "rb"))
-
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate_HARADA(model_state_dict)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
+        # # load model
+        # model_state_dict = pickle.load(open("model/{}Test19_city_{}.pkl".format(TARGET, str(loop)), "rb"))
+        #
+        # # evaluate
+        # print("* TARGET: {}{}".format(TARGET, str(loop)))
+        # rmse, accuracy = evaluate_HARADA(model_state_dict)
+        # rmse_list.append(rmse)
+        # accuracy_list.append(accuracy)
 
         # time
         print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
 
-    with open("result/{}Test19_city.csv".format(TARGET), "w") as result:
-        result.write("--------------------------------------------\n")
-        result.write("RMSE\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(rmse_list)):
-            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
-        result.write("--------------------------------------------\n")
-        result.write("Accuracy\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(accuracy_list)):
-            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+    # with open("result/{}Test19_city.csv".format(TARGET), "w") as result:
+    #     result.write("--------------------------------------------\n")
+    #     result.write("RMSE\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(rmse_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+    #     result.write("--------------------------------------------\n")
+    #     result.write("Accuracy\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(accuracy_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
 def expFNN(TRIAL, TARGET):
 
@@ -906,7 +905,7 @@ def cityTest19_cityData(CITIEs4):
 
             print("*---TARGET: {}".format(TARGET))
 
-            for loop in range(2, 4):
+            for loop in range(1, 4):
                 print("* Shuffle Loop: {}".format(str(loop)))
 
                 # train data
@@ -1002,7 +1001,8 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    #cityTest19_cityData(CITIEs4)
+    CITIEs4 = ["TianJin"]
+    cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -1085,9 +1085,9 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    CITIEs4 = ["BeiJing"]
-    for TARGET in CITIEs4:
-        expProposal(TRIAL, TARGET)
+    # CITIEs4 = ["BeiJing"]
+    # for TARGET in CITIEs4:
+    #     expProposal(TRIAL, TARGET)
 
     '''
     距離計算
