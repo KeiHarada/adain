@@ -284,14 +284,14 @@ def exp19cities(TRIAL, TARGET):
     19都市で訓練したモデルをでテスト
     '''
 
-    # to evaluate
-    rmse_list = list()
-    accuracy_list = list()
+    # # to evaluate
+    # rmse_list = list()
+    # accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
-        print("* SOURCE: All{}".format(str(loop)))
+        print("* SOURCE: All {}{}".format(TARGET, str(loop)))
 
         # save dataset path
         with open("tmp/trainPath.pkl", "wb") as fp:
@@ -312,33 +312,33 @@ def exp19cities(TRIAL, TARGET):
         log = pickle.load(open("tmp/{}_log.pkl".format(str(study.best_trial.number).zfill(4)), "rb"))
         log.to_csv("log/{}Test19_{}.csv".format(TARGET, str(loop)), index=False)
 
-        # load best model
-        model_state_dict = pickle.load(open("model/{}Test19_{}.pkl".format(TARGET, str(loop)), "rb"))
-
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate_ADAIN(model_state_dict)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
-
-        # time
-        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
-
-    with open("result/{}Test19.csv".format(TARGET), "w") as result:
-        result.write("--------------------------------------------\n")
-        result.write("RMSE\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(rmse_list)):
-            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
-        result.write("--------------------------------------------\n")
-        result.write("Accuracy\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(accuracy_list)):
-            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+    #     # load best model
+    #     model_state_dict = pickle.load(open("model/{}Test19_{}.pkl".format(TARGET, str(loop)), "rb"))
+    #
+    #     # evaluate
+    #     print("* TARGET: {}{}".format(TARGET, str(loop)))
+    #     rmse, accuracy = evaluate_ADAIN(model_state_dict)
+    #     rmse_list.append(rmse)
+    #     accuracy_list.append(accuracy)
+    #
+    #     # time
+    #     print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+    #
+    # with open("result/{}Test19.csv".format(TARGET), "w") as result:
+    #     result.write("--------------------------------------------\n")
+    #     result.write("RMSE\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(rmse_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+    #     result.write("--------------------------------------------\n")
+    #     result.write("Accuracy\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(accuracy_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
 def expProposal(TRIAL, TARGET):
 
@@ -350,10 +350,10 @@ def expProposal(TRIAL, TARGET):
     # rmse_list = list()
     # accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
-        print("* SOURCE: All{}".format(str(loop)))
+        print("* SOURCE: All {}{}".format(TARGET, str(loop)))
 
         # save dataset path
         with open("tmp/trainPath.pkl", "wb") as fp:
@@ -556,10 +556,10 @@ def exp5cities(TRIAL, TARGET):
     '''
 
     # to evaluate
-    rmse_list = list()
-    accuracy_list = list()
+    # rmse_list = list()
+    # accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
         print("* SOURCE: Dist-{}".format(str(loop)))
@@ -583,33 +583,33 @@ def exp5cities(TRIAL, TARGET):
         log = pickle.load(open("tmp/{}_log.pkl".format(str(study.best_trial.number).zfill(4)), "rb"))
         log.to_csv("log/{}Test5_{}.csv".format(TARGET, str(loop)), index=False)
 
-        # load best model
-        model_state_dict = pickle.load(open("model/{}Test5_{}.pkl".format(TARGET, str(loop)), "rb"))
-
-        # evaluate
-        print("* TARGET: {}{}".format(TARGET, str(loop)))
-        rmse, accuracy = evaluate_ADAIN(model_state_dict)
-        rmse_list.append(rmse)
-        accuracy_list.append(accuracy)
-
-        # time
-        print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
-
-    with open("result/{}Test5.csv".format(TARGET), "w") as result:
-        result.write("--------------------------------------------\n")
-        result.write("RMSE\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(rmse_list)):
-            result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
-        result.write("--------------------------------------------\n")
-        result.write("Accuracy\n")
-        result.write("----------\n")
-        result.write("city,{}\n".format(TARGET))
-        for loop in range(len(accuracy_list)):
-            result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
-        result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
+    #     # load best model
+    #     model_state_dict = pickle.load(open("model/{}Test5_{}.pkl".format(TARGET, str(loop)), "rb"))
+    #
+    #     # evaluate
+    #     print("* TARGET: {}{}".format(TARGET, str(loop)))
+    #     rmse, accuracy = evaluate_ADAIN(model_state_dict)
+    #     rmse_list.append(rmse)
+    #     accuracy_list.append(accuracy)
+    #
+    #     # time
+    #     print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+    #
+    # with open("result/{}Test5.csv".format(TARGET), "w") as result:
+    #     result.write("--------------------------------------------\n")
+    #     result.write("RMSE\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(rmse_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(rmse_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(rmse_list)))))
+    #     result.write("--------------------------------------------\n")
+    #     result.write("Accuracy\n")
+    #     result.write("----------\n")
+    #     result.write("city,{}\n".format(TARGET))
+    #     for loop in range(len(accuracy_list)):
+    #         result.write("exp{},{}\n".format(str(loop), str(accuracy_list[loop])))
+    #     result.write("average,{}\n".format(str(np.average(np.array(accuracy_list)))))
 
 def exp1city(TRIAL, SOURCEs, TARGET):
 
@@ -1001,8 +1001,8 @@ if __name__ == "__main__":
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
-    CITIEs4 = ["TianJin"]
-    cityTest19_cityData(CITIEs4)
+    # CITIEs4 = ["TianJin"]
+    # cityTest19_cityData(CITIEs4)
     #cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
@@ -1038,6 +1038,7 @@ if __name__ == "__main__":
     Experiment3:
     全都市で訓練したモデルの性能検証実験
     '''
+    # CITIEs4 = ["GuangZhou"]
     # for TARGET in CITIEs4:
     #     exp19cities(TRIAL, TARGET)
 
@@ -1085,9 +1086,9 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    # CITIEs4 = ["BeiJing"]
-    # for TARGET in CITIEs4:
-    #     expProposal(TRIAL, TARGET)
+    CITIEs4 = ["BeiJing"]
+    for TARGET in CITIEs4:
+        expProposal(TRIAL, TARGET)
 
     '''
     距離計算
