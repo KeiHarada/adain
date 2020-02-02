@@ -968,7 +968,6 @@ def tmp():
     cityNum = 1
     stationNum = 1
 
-
     # train data
     for city_id in range(cityNum):
         for station_id in range(stationNum):
@@ -1043,9 +1042,9 @@ def tmp():
                 print("save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
             print("--------------------")
 
-    cid_others = cid_list.copy()
+    cid_trains = cid_list.copy()
     print("Finish train data")
-    print(cid_others)
+    print(cid_trains)
     print("--------------------")
 
     # test data
@@ -1090,7 +1089,7 @@ def tmp():
             others_seq_new.append(others_seq_sorted)
             others_city_new.append(others_city_sorted)
 
-        cid_removed = list(set(cid_others).difference(set(cid_list)))[0]
+        cid_removed = list(set(cid_trains).difference(set(cid_list)))[0]
         cid_list.append(cid_removed)
         cid_list.sort()
         cid_local_index = cid_list.index(cid_removed)
@@ -1116,9 +1115,6 @@ def tmp():
             fp.write(pickle.dumps(out_set))
             print("save test_{}.pkl.bz2".format(str(station_id).zfill(3)))
         print("--------------------")
-
-
-
 
 if __name__ == "__main__":
 

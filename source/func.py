@@ -1272,10 +1272,12 @@ def _objective_HARADA(trial):
     # mmd data
     mmdData = list()
     testData = list()
+    testData_idx = list()
     for i in range(stationNum):
         tmp = pickle.load(bz2.BZ2File("{}/test_{}.pkl.bz2".format(testPath, str(i).zfill(3)), 'rb'))
         mmdData.append(MyDataset_MMD(tmp[:2]))
         testData.append(MyDataset_HARADA(tmp))
+        testData_idx.append(pickle.load(open("{}/test_{}_idx.pkl".format(testPath, str(i).zfill(3)), 'rb')))
     print("mmd data was loaded")
 
     # start training
@@ -1291,7 +1293,8 @@ def _objective_HARADA(trial):
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(selectPath, "rb")))
             trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
 
-            local_index = pickle.load(open("trainPath"))
+            selectPath = "{}/train_{}{}_idx.pkl".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
+            local_index = pickle.load(open(selectPath, "rb"))
 
             for batch_i in range(len(trainData)):
 
@@ -1311,7 +1314,7 @@ def _objective_HARADA(trial):
                 batch_target = batch_target.to(device)
 
                 # predict
-                y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+                y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, local_index)
 
                 # loss append
                 batch_loss_moe = criterion_mse(y_moe, batch_target)
@@ -1358,7 +1361,7 @@ def _objective_HARADA(trial):
 
             # evaluate
             model.eval()
-            rmse, accuracy = _midium_evaluate_HARADA(model, testData)
+            rmse, accuracy = _midium_evaluate_HARADA(model, testData, testData_idx)
             model.train()
             log = {'epoch': step, 'train_rmse': np.mean(epoch_loss), 'test_rmse': rmse}
             logs.append(log)
@@ -1387,7 +1390,7 @@ def _objective_HARADA(trial):
     return rmse
 
 
-def _midium_evaluate_HARADA(model, testData):
+def _midium_evaluate_HARADA(model, testData, testData_idx):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -1402,6 +1405,7 @@ def _midium_evaluate_HARADA(model, testData):
     result_label = list()
 
     for i in range(stationNum):
+        local_idx = testData_idx[i]
         for batch_i in torch.utils.data.DataLoader(testData[i], batch_size=batch_size, shuffle=False):
 
             # batch data
@@ -1416,7 +1420,7 @@ def _midium_evaluate_HARADA(model, testData):
 
             # predict
             with torch.no_grad():
-                y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
+                y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, local_idx)
                 pred = y_moe.to("cpu")
 
                 # evaluate

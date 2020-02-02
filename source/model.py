@@ -267,15 +267,19 @@ class _HARADA(nn.Module):
         self.attention_city2.to(device)
 
         # |- output
-        self.fusion1 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fusion_hidden)
-        self.fusion2 = nn.Linear(self.fusion_hidden, self.fusion_hidden)
-        self.output = nn.Linear(self.fusion_hidden, 1)
-        nn.init.uniform_(self.fusion1.weight, -0.1, 0.1)
-        nn.init.uniform_(self.fusion2.weight, -0.1, 0.1)
-        nn.init.uniform_(self.output.weight, -0.1, 0.1)
-        self.fusion1.to(device)
-        self.fusion2.to(device)
-        self.output.to(device)
+        self.fusion1 = list()
+        self.fusion2 = list()
+        self.output = list()
+        for i in range(self.cityNum):
+            self.fusion1.append(nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fusion_hidden))
+            self.fusion2.append(nn.Linear(self.fusion_hidden, self.fusion_hidden))
+            self.output.append(nn.Linear(self.fusion_hidden, 1))
+            nn.init.uniform_(self.fusion1[i].weight, -0.1, 0.1)
+            nn.init.uniform_(self.fusion2[i].weight, -0.1, 0.1)
+            nn.init.uniform_(self.output[i].weight, -0.1, 0.1)
+            self.fusion1[i].to(device)
+            self.fusion2[i].to(device)
+            self.output[i].to(device)
 
 
     def initial_hidden(self, data_size):
@@ -310,7 +314,7 @@ class _HARADA(nn.Module):
 
         return y_local
 
-    def forward(self, x_local_static, x_local_seq, x_others_static, x_others_seq, x_others_city):
+    def forward(self, x_local_static, x_local_seq, x_others_static, x_others_seq, x_others_city, local_index):
         '''
         :param x_local_static: スタティック特徴量 (local)
         :param x_local_seq: シーケンシャル特徴量 (local)
@@ -341,12 +345,16 @@ class _HARADA(nn.Module):
 
         # |- others
         # slicing by the number of cities
-        x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, self.cityNum, dim=1)]
-        x_others_seq = [torch.squeeze(x) for x in torch.chunk(x_others_seq, self.cityNum, dim=1)]
-        x_others_city = [torch.squeeze(x) for x in torch.chunk(x_others_city, self.cityNum, dim=1)]
+        x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, self.cityNum-1, dim=1)]
+        x_others_seq = [torch.squeeze(x) for x in torch.chunk(x_others_seq, self.cityNum-1, dim=1)]
+        x_others_city = [torch.squeeze(x) for x in torch.chunk(x_others_city, self.cityNum-1, dim=1)]
 
         attention_city = list()
-        for i in range(self.cityNum):
+        output_idx = 0
+        for i in range(self.cityNum-1):
+
+            if i == local_index:
+                output_idx += 1
 
             y_others_i = list()
 
@@ -387,11 +395,13 @@ class _HARADA(nn.Module):
             y_others_i = torch.stack(y_others_i, dim=0).sum(dim=0)
 
             # output layer
-            y_i = F.relu(self.fusion1(torch.cat([y_local, y_others_i], dim=1)))
+            y_i = F.relu(self.fusion1[output_idx](torch.cat([y_local, y_others_i], dim=1)))
             y_i = self.drop_fusion(y_i)
-            y_i = F.relu(self.fusion2(y_i))
-            y_i = self.output(y_i)
+            y_i = F.relu(self.fusion2[output_idx](y_i))
+            y_i = self.output[output_idx](y_i)
             y_mtl.append(y_i)
+
+            output_idx += 1
 
         # output
         y_mmd = torch.cat(mmd, dim=0)
