@@ -356,8 +356,6 @@ class _HARADA(nn.Module):
             if i == local_index:
                 output_idx += 1
 
-            print(output_idx)
-
             y_others_i = list()
 
             # slicing by the number of stations

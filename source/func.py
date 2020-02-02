@@ -1273,7 +1273,7 @@ def _objective_HARADA(trial):
     mmdData = list()
     testData = list()
     testData_idx = list()
-    for i in range(1):
+    for i in range(stationNum):
         tmp = pickle.load(bz2.BZ2File("{}/test_{}.pkl.bz2".format(testPath, str(i).zfill(3)), 'rb'))
         mmdData.append(MyDataset_MMD(tmp[:2]))
         testData.append(MyDataset_HARADA(tmp))
@@ -1286,17 +1286,14 @@ def _objective_HARADA(trial):
         epoch_loss = list()
         stationSelector = [random.randrange(0, 5) for i in range(cityNum)]
 
-        #for idx in range(len(stationSelector)):
-        for idx in range(1):
+        for idx in range(len(stationSelector)):
 
             repeat_loss = list()
-            #selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
-            selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(0).zfill(3))
+            selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(selectPath, "rb")))
             trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
 
-            #selectPath = "{}/train_{}{}_idx.pkl".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
-            selectPath = "{}/train_{}{}_idx.pkl".format(trainPath, str(idx).zfill(3), str(0).zfill(3))
+            selectPath = "{}/train_{}{}_idx.pkl".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
             local_index = pickle.load(open(selectPath, "rb"))
 
             for batch_i in range(len(trainData)):
@@ -1362,19 +1359,19 @@ def _objective_HARADA(trial):
             epoch_loss.append(repeat_loss)
             print("\t\t|- epoch loss: {}".format(str(repeat_loss)))
 
-            # evaluate
-            model.eval()
-            rmse, accuracy = _midium_evaluate_HARADA(model, testData, testData_idx)
-            model.train()
-            log = {'epoch': step, 'train_rmse': np.mean(epoch_loss), 'test_rmse': rmse}
-            logs.append(log)
-            print("\t\t|- rmse: {}, accuracy: {}".format(str(rmse), str(accuracy)))
+        # evaluate
+        model.eval()
+        rmse, accuracy = _midium_evaluate_HARADA(model, testData, testData_idx)
+        model.train()
+        log = {'epoch': step, 'train_rmse': np.mean(epoch_loss), 'test_rmse': rmse}
+        logs.append(log)
+        print("\t\t|- rmse: {}, accuracy: {}".format(str(rmse), str(accuracy)))
 
-            # early stopping
-            early_stopping(rmse, model)
-            if early_stopping.early_stop:
-                print("\t\t\tEarly stopping")
-                break
+        # early stopping
+        early_stopping(rmse, model)
+        if early_stopping.early_stop:
+            print("\t\t\tEarly stopping")
+            break
 
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))

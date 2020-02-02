@@ -970,8 +970,8 @@ def tmp():
 
     city_path = "BeiJing"
     loop_path = "2"
-    cityNum = 1
-    stationNum = 1
+    cityNum = 19
+    stationNum = 5
 
     # train data
     for city_id in range(cityNum):
@@ -1042,7 +1042,7 @@ def tmp():
                 pickle.dump(cid_local_index, fp)
 
             save_path = "dataset/{}Test19_harada/train{}/train_{}{}.pkl.bz2".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
-            with bz2.BZ2File(save_path, 'wb', compresslevel=9) as fp:
+            with bz2.BZ2File(save_path, 'wb', compresslevel=1) as fp:
                 fp.write(pickle.dumps(out_set))
                 print("save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
             print("--------------------")
@@ -1116,15 +1116,15 @@ def tmp():
             pickle.dump(cid_local_index, fp)
 
         save_path = "dataset/{}Test19_harada/test{}/test_{}.pkl.bz2".format(city_path, loop_path, str(station_id).zfill(3))
-        with bz2.BZ2File(save_path, 'wb', compresslevel=9) as fp:
+        with bz2.BZ2File(save_path, 'wb', compresslevel=1) as fp:
             fp.write(pickle.dumps(out_set))
             print("save test_{}.pkl.bz2".format(str(station_id).zfill(3)))
         print("--------------------")
 
 if __name__ == "__main__":
 
-    # tmp()
-    # exit()
+    tmp()
+    exit()
 
     device = "gpu" if torch.cuda.is_available() else "cpu"
     print("Using device: {}".format(device))
@@ -1257,9 +1257,9 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    CITIEs4 = ["BeiJing"]
-    for TARGET in CITIEs4:
-        expProposal(TRIAL, TARGET)
+    # CITIEs4 = ["BeiJing"]
+    # for TARGET in CITIEs4:
+    #     expProposal(TRIAL, TARGET)
 
     '''
     距離計算
