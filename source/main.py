@@ -965,8 +965,8 @@ def tmp():
 
     city_path = "BeiJing"
     loop_path = "2"
-    cityNum = 19
-    stationNum = 5
+    cityNum = 1
+    stationNum = 1
 
 
     # train data
@@ -1020,6 +1020,7 @@ def tmp():
             cid_list.append(cid_local)
             cid_list.sort()
             cid_local_index = cid_list.index(cid_local)
+            print(cid_local, end=":\t")
             print(cid_local_index)
             print(cid_list)
 
@@ -1089,10 +1090,11 @@ def tmp():
             others_seq_new.append(others_seq_sorted)
             others_city_new.append(others_city_sorted)
 
-        cid_removed = set(cid_others).difference(set(cid_list))[0]
+        cid_removed = list(set(cid_others).difference(set(cid_list)))[0]
         cid_list.append(cid_removed)
         cid_list.sort()
         cid_local_index = cid_list.index(cid_removed)
+        print(cid_removed, end=":\t")
         print(cid_local_index)
         print(cid_list)
 

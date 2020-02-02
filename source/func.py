@@ -1249,7 +1249,7 @@ def _objective_HARADA(trial):
                    inputDim_local_seq=inputDim["local_seq"],
                    inputDim_others_static=inputDim["others_static"],
                    inputDim_others_seq=inputDim["others_seq"],
-                   cityNum=cityNum-1,
+                   cityNum=cityNum,
                    stationNum=stationNum)
 
     # GPU or CPU
@@ -1290,6 +1290,8 @@ def _objective_HARADA(trial):
             selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(selectPath, "rb")))
             trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
+
+            local_index = pickle.load(open("trainPath"))
 
             for batch_i in range(len(trainData)):
 
