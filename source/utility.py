@@ -251,12 +251,16 @@ class MMD:
 class MyDataset_ADAIN(torch.utils.data.Dataset):
 
     def __init__(self, data):
-        self.local_static = data[0]
-        self.local_seq = data[1]
-        self.others_static = data[2]
-        self.others_seq = data[3]
-        self.target = data[4]
-        self.data_num = len(data[4])
+
+
+        start, end = 1000, 3000
+
+        self.local_static = data[0][start:end]
+        self.local_seq = data[1][start:end]
+        self.others_static = data[2][start:end]
+        self.others_seq = data[3][start:end]
+        self.target = data[4][start:end]
+        self.data_num = len(data[4][start:end])
 
     def __len__(self):
         return self.data_num
@@ -275,13 +279,15 @@ class MyDataset_HARADA(torch.utils.data.Dataset):
 
     def __init__(self, data):
 
-        self.local_static = data[0]
-        self.local_seq = data[1]
-        self.others_static = data[2]
-        self.others_seq = data[3]
-        self.others_city = data[4]
-        self.target = data[5]
-        self.data_num = len(data[5])
+        start, end = 1000, 3000
+
+        self.local_static = data[0][start:end]
+        self.local_seq = data[1][start:end]
+        self.others_static = data[2][start:end]
+        self.others_seq = data[3][start:end]
+        self.others_city = data[4][start:end]
+        self.target = data[5][start:end]
+        self.data_num = len(data[5][start:end])
 
     def __len__(self):
         return self.data_num
@@ -300,9 +306,12 @@ class MyDataset_HARADA(torch.utils.data.Dataset):
 class MyDataset_MMD(torch.utils.data.Dataset):
 
     def __init__(self, data):
-        self.local_static = data[0]
-        self.local_seq = data[1]
-        self.data_num = len(data[0])
+
+        start, end = 1000, 3000
+
+        self.local_static = data[0][start:end]
+        self.local_seq = data[1][start:end]
+        self.data_num = len(data[0][start:end])
 
     def __len__(self):
         return self.data_num

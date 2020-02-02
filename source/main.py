@@ -20,6 +20,7 @@ from source.func import makeTestData
 from source.func import makeTestData_sampled
 from source.func import objective_ADAIN
 from source.func import objective_HARADA
+from source.func import _objective_HARADA
 from source.func import objective_FNN
 from source.func import evaluate_ADAIN
 from source.func import evaluate_HARADA
@@ -363,7 +364,7 @@ def expProposal(TRIAL, TARGET):
 
         # training & parameter tuning by optuna: activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(objective_HARADA, n_trials=TRIAL)
+        study.optimize(_objective_HARADA, n_trials=TRIAL)
 
         # save model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -411,7 +412,7 @@ def expFNN(TRIAL, TARGET):
     rmse_list = list()
     accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
         print("* SOURCE: All{}".format(str(loop)))
@@ -473,7 +474,7 @@ def expKNN(TARGET):
     rmse_list = list()
     accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
 
@@ -516,7 +517,7 @@ def expLI(TARGET):
     rmse_list = list()
     accuracy_list = list()
 
-    for loop in range(1, 4):
+    for loop in range(2, 3):
         start = time.time()
         print("----------------")
 
@@ -591,9 +592,9 @@ def exp5cities(TRIAL, TARGET):
     #     rmse, accuracy = evaluate_ADAIN(model_state_dict)
     #     rmse_list.append(rmse)
     #     accuracy_list.append(accuracy)
-    #
-    #     # time
-    #     print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
+
+        # time
+    #    print("time = {} [hours]".format(str((time.time() - start) / (60 * 60))))
     #
     # with open("result/{}Test5.csv".format(TARGET), "w") as result:
     #     result.write("--------------------------------------------\n")
@@ -995,7 +996,7 @@ if __name__ == "__main__":
     '''
     4 cities
     '''
-    #CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    # CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
 
     '''
     create dataset

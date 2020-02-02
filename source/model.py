@@ -200,6 +200,214 @@ class ADAIN(nn.Module):
         return y
 
 # HARADA
+class _HARADA(nn.Module):
+
+    def __init__(self, inputDim_local_static, inputDim_local_seq, inputDim_others_static, inputDim_others_seq, cityNum, stationNum):
+        super(_HARADA, self).__init__()
+
+        # CPU or GPU
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.cityNum = cityNum
+        self.stationNum = stationNum
+        self.lstm_num_layers = 2
+
+        # drop out layer
+        self.drop_static_local = nn.Dropout(p=0.5)
+        self.drop_static_others = nn.Dropout(p=0.5)
+        self.drop_joint_local = nn.Dropout(p=0.5)
+        self.drop_joint_others = nn.Dropout(p=0.5)
+        self.drop_attention_city = nn.Dropout(p=0.5)
+        self.drop_fusion = nn.Dropout(p=0.5)
+
+        # the neuron size of hidden layer
+        self.fc_static_hidden = 300
+        self.fc_joint_hidden = 300
+        self.fc_attention_city_hidden = (self.fc_joint_hidden * (self.stationNum + 1)) + 2
+        self.fusion_hidden = 300
+        self.lstm_hidden = 300
+
+        # NN layer
+        # |- local
+        self.fc_static_local1 = nn.Linear(inputDim_local_static, self.fc_static_hidden)
+        self.fc_static_local2 = nn.Linear(self.fc_static_hidden, self.fc_static_hidden)
+        self.lstm_local = nn.LSTM(inputDim_local_seq, self.lstm_hidden, batch_first=True, dropout=0.5, num_layers=self.lstm_num_layers).to(device)
+        self.fc_joint_local1 = nn.Linear(self.fc_static_hidden + self.lstm_hidden, self.fc_joint_hidden)
+        self.fc_joint_local2 = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden)
+        nn.init.uniform_(self.fc_static_local1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_static_local2.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_joint_local1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_joint_local2.weight, -0.1, 0.1)
+        self.fc_static_local1.to(device)
+        self.fc_static_local2.to(device)
+        self.fc_joint_local1.to(device)
+        self.fc_joint_local2.to(device)
+
+        # |- others
+        self.fc_static_others1 = nn.Linear(inputDim_others_static, self.fc_static_hidden)
+        self.fc_static_others2 = nn.Linear(self.fc_static_hidden, self.fc_static_hidden)
+        self.lstm_others = nn.LSTM(inputDim_others_seq, self.lstm_hidden, batch_first=True, dropout=0.5, num_layers=self.lstm_num_layers).to(device)
+        self.fc_joint_others1 = nn.Linear(self.fc_static_hidden + self.lstm_hidden, self.fc_joint_hidden)
+        self.fc_joint_others2 = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden)
+        nn.init.uniform_(self.fc_static_others1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_static_others2.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_joint_others1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fc_joint_others2.weight, -0.1, 0.1)
+        self.fc_static_others1.to(device)
+        self.fc_static_others2.to(device)
+        self.fc_joint_others1.to(device)
+        self.fc_joint_others2.to(device)
+
+        # |- attention
+        self.attention_city1 = nn.Linear(self.fc_attention_city_hidden, self.fc_attention_city_hidden)
+        self.attention_city2 = nn.Linear(self.fc_attention_city_hidden, 1)
+        nn.init.uniform_(self.attention_city1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.attention_city2.weight, -0.1, 0.1)
+        self.attention_city1.to(device)
+        self.attention_city2.to(device)
+
+        # |- output
+        self.fusion1 = nn.Linear(self.fc_joint_hidden + self.fc_joint_hidden, self.fusion_hidden)
+        self.fusion2 = nn.Linear(self.fusion_hidden, self.fusion_hidden)
+        self.output = nn.Linear(self.fusion_hidden, 1)
+        nn.init.uniform_(self.fusion1.weight, -0.1, 0.1)
+        nn.init.uniform_(self.fusion2.weight, -0.1, 0.1)
+        nn.init.uniform_(self.output.weight, -0.1, 0.1)
+        self.fusion1.to(device)
+        self.fusion2.to(device)
+        self.output.to(device)
+
+
+    def initial_hidden(self, data_size):
+        '''
+        :param data_size:
+        :param batch_size:
+        :return: (hidden0, cell0)
+        '''
+
+        # CPU or GPU
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        hidden0 = ((torch.rand(self.lstm_num_layers, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
+        cell0 = ((torch.rand(self.lstm_num_layers, data_size, self.lstm_hidden)-0.5)*0.2).to(device)
+
+        return (hidden0, cell0)
+
+    def encode(self, x_local_static, x_local_seq):
+        # static layer
+        y_local_static = F.relu(self.fc_static_local1(x_local_static))
+        y_local_static = self.drop_static_local(y_local_static)
+        y_local_static = F.relu(self.fc_static_local2(y_local_static))
+
+        # lstm layer
+        y_local_seq, (hidden, cell) = self.lstm_local(x_local_seq, self.initial_hidden(len(x_local_seq)))
+        y_local_seq = hidden[0] # 最後の出力が欲しいのでhiddenを使う
+
+        # joint layer
+        y_local = F.relu(self.fc_joint_local1(torch.cat([y_local_static, y_local_seq], dim=1)))
+        y_local = self.drop_joint_local(y_local)
+        y_local = F.relu(self.fc_joint_local2(y_local))
+
+        return y_local
+
+    def forward(self, x_local_static, x_local_seq, x_others_static, x_others_seq, x_others_city):
+        '''
+        :param x_local_static: スタティック特徴量 (local)
+        :param x_local_seq: シーケンシャル特徴量 (local)
+        :param x_others_static: スタティック特徴量 (others)
+        :param x_others_seq: シーケンシャル特徴量 (others)
+        :param x_others_city: 都市間の距離と角度
+        :return: aqiの予測値
+        '''
+
+        # output
+        y_mtl = list()
+        mmd = list()
+
+        # |- local
+        # static layer
+        y_local_static = F.relu(self.fc_static_local1(x_local_static))
+        y_local_static = self.drop_static_local(y_local_static)
+        y_local_static = F.relu(self.fc_static_local2(y_local_static))
+
+        # lstm layer
+        y_local_seq, (hidden, cell) = self.lstm_local(x_local_seq, self.initial_hidden(len(x_local_seq)))
+        y_local_seq = hidden[0] # 最後の出力が欲しいのでhiddenを使う
+
+        # joint layer
+        y_local = F.relu(self.fc_joint_local1(torch.cat([y_local_static, y_local_seq], dim=1)))
+        y_local = self.drop_joint_local(y_local)
+        y_local = F.relu(self.fc_joint_local2(y_local))
+
+        # |- others
+        # slicing by the number of cities
+        x_others_static = [torch.squeeze(x) for x in torch.chunk(x_others_static, self.cityNum, dim=1)]
+        x_others_seq = [torch.squeeze(x) for x in torch.chunk(x_others_seq, self.cityNum, dim=1)]
+        x_others_city = [torch.squeeze(x) for x in torch.chunk(x_others_city, self.cityNum, dim=1)]
+
+        attention_city = list()
+        for i in range(self.cityNum):
+
+            y_others_i = list()
+
+            # slicing by the number of stations
+            x_others_static_i = [torch.squeeze(x) for x in torch.chunk(x_others_static[i], self.stationNum, dim=1)]
+            x_others_seq_i = [torch.squeeze(x) for x in torch.chunk(x_others_seq[i], self.stationNum, dim=1)]
+
+            for j in range(self.stationNum):
+
+                mmd.append(self.encode(x_others_static_i[j][:, :-2], x_others_seq_i[j][:, :, :-1]))
+
+                # basic layer
+                y_others_static_ij = F.relu(self.fc_static_others1(x_others_static_i[j]))
+                y_others_static_ij = self.drop_static_others(y_others_static_ij)
+                y_others_static_ij = F.relu(self.fc_static_others2(y_others_static_ij))
+
+                # lstm layer
+                y_others_seq_ij, (hidden, cell) = self.lstm_others(x_others_seq_i[j], self.initial_hidden(len(x_local_seq)))
+                y_others_seq_ij = hidden[0]  # 最後の出力が欲しいのでhiddenを使う
+
+                # joint layer
+                y_others_ij = F.relu(self.fc_joint_others1(torch.cat([y_others_static_ij, y_others_seq_ij], dim=1)))
+                y_others_ij = self.drop_joint_others(y_others_ij)
+                y_others_ij = F.relu(self.fc_joint_others2(y_others_ij))
+                y_others_i.append(y_others_ij)
+
+            # joint layer
+            y_city_i = torch.cat(y_others_i, dim=1)
+            y_city_i = torch.cat([y_city_i, x_others_city[i]], dim=1)
+
+            # city based attention layer
+            attention_city_i = F.relu(self.attention_city1(torch.cat([y_local, y_city_i], dim=1)))
+            attention_city_i = self.drop_attention_city(attention_city_i)
+            attention_city_i = self.attention_city2(attention_city_i)
+            attention_city.append(attention_city_i)
+
+            # give other stations attention score
+            y_others_i = torch.stack(y_others_i, dim=0).sum(dim=0)
+
+            # output layer
+            y_i = F.relu(self.fusion1(torch.cat([y_local, y_others_i], dim=1)))
+            y_i = self.drop_fusion(y_i)
+            y_i = F.relu(self.fusion2(y_i))
+            y_i = self.output(y_i)
+            y_mtl.append(y_i)
+
+        # output
+        y_mmd = torch.cat(mmd, dim=0)
+
+        # give other cities attention score
+        y_moe = torch.stack(y_mtl, dim=0)
+        attention_city = torch.stack(attention_city, dim=0)
+        attention_city = F.softmax(attention_city, dim=0)
+        y_moe = (attention_city * y_moe).sum(dim=0)
+
+        etp = -1.0 * (attention_city * torch.log(attention_city + 1e-7)).sum(dim=0)
+        etp = torch.sum(etp)
+
+        return y_moe, y_mtl, y_mmd, etp
+
+# HARADA
 class HARADA(nn.Module):
 
     def __init__(self, inputDim_local_static, inputDim_local_seq, inputDim_others_static, inputDim_others_seq, cityNum, stationNum):
@@ -233,7 +441,7 @@ class HARADA(nn.Module):
         # |- local
         self.fc_static_local1 = nn.Linear(inputDim_local_static, self.fc_static_hidden)
         self.fc_static_local2 = nn.Linear(self.fc_static_hidden, self.fc_static_hidden)
-        self.lstm_local = nn.LSTM(inputDim_local_seq, self.lstm_hidden, batch_first=True, dropout=0.2, num_layers=self.lstm_num_layers).to(device)
+        self.lstm_local = nn.LSTM(inputDim_local_seq, self.lstm_hidden, batch_first=True, dropout=0.5, num_layers=self.lstm_num_layers).to(device)
         self.fc_joint_local1 = nn.Linear(self.fc_static_hidden + self.lstm_hidden, self.fc_joint_hidden)
         self.fc_joint_local2 = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden)
         nn.init.uniform_(self.fc_static_local1.weight, -0.1, 0.1)
@@ -248,7 +456,7 @@ class HARADA(nn.Module):
         # |- others
         self.fc_static_others1 = nn.Linear(inputDim_others_static, self.fc_static_hidden)
         self.fc_static_others2 = nn.Linear(self.fc_static_hidden, self.fc_static_hidden)
-        self.lstm_others = nn.LSTM(inputDim_others_seq, self.lstm_hidden, batch_first=True, dropout=0.2, num_layers=self.lstm_num_layers).to(device)
+        self.lstm_others = nn.LSTM(inputDim_others_seq, self.lstm_hidden, batch_first=True, dropout=0.5, num_layers=self.lstm_num_layers).to(device)
         self.fc_joint_others1 = nn.Linear(self.fc_static_hidden + self.lstm_hidden, self.fc_joint_hidden)
         self.fc_joint_others2 = nn.Linear(self.fc_joint_hidden, self.fc_joint_hidden)
         nn.init.uniform_(self.fc_static_others1.weight, -0.1, 0.1)
@@ -409,12 +617,7 @@ class HARADA(nn.Module):
             y_i = self.drop_fusion(y_i)
             y_i = F.relu(self.fusion2(y_i))
             y_i = self.output(y_i)
-            if self.training is False:
-                print("\t\t", y_i[0])
             y_mtl.append(y_i)
-
-        if self.training is False:
-            print("\t\t---")
 
         # output
         y_mmd = torch.cat(mmd, dim=0)
