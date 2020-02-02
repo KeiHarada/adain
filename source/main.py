@@ -357,10 +357,15 @@ def expProposal(TRIAL, TARGET):
         print("* SOURCE: All {}{}".format(TARGET, str(loop)))
 
         # save dataset path
+        # with open("tmp/trainPath.pkl", "wb") as fp:
+        #     pickle.dump("dataset/{}Test19_city/train{}".format(TARGET, str(loop)), fp)
+        # with open("tmp/testPath.pkl", "wb") as fp:
+        #     pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
+
         with open("tmp/trainPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19_city/train{}".format(TARGET, str(loop)), fp)
+            pickle.dump("dataset/{}Test19_harada/train{}".format(TARGET, str(loop)), fp)
         with open("tmp/testPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
+            pickle.dump("dataset/{}Test19_harada/test{}".format(TARGET, str(loop)), fp)
 
         # training & parameter tuning by optuna: activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
@@ -1118,8 +1123,8 @@ def tmp():
 
 if __name__ == "__main__":
 
-    tmp()
-    exit()
+    # tmp()
+    # exit()
 
     device = "gpu" if torch.cuda.is_available() else "cpu"
     print("Using device: {}".format(device))
