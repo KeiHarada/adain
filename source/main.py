@@ -357,19 +357,19 @@ def expProposal(TRIAL, TARGET):
         print("* SOURCE: All {}{}".format(TARGET, str(loop)))
 
         # save dataset path
-        # with open("tmp/trainPath.pkl", "wb") as fp:
-        #     pickle.dump("dataset/{}Test19_city/train{}".format(TARGET, str(loop)), fp)
-        # with open("tmp/testPath.pkl", "wb") as fp:
-        #     pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
-
         with open("tmp/trainPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19_harada/train{}".format(TARGET, str(loop)), fp)
+            pickle.dump("dataset/{}Test19_city/train{}".format(TARGET, str(loop)), fp)
         with open("tmp/testPath.pkl", "wb") as fp:
-            pickle.dump("dataset/{}Test19_harada/test{}".format(TARGET, str(loop)), fp)
+            pickle.dump("dataset/{}Test19_city/test{}".format(TARGET, str(loop)), fp)
+
+        # with open("tmp/trainPath.pkl", "wb") as fp:
+        #     pickle.dump("dataset/{}Test19_harada/train{}".format(TARGET, str(loop)), fp)
+        # with open("tmp/testPath.pkl", "wb") as fp:
+        #     pickle.dump("dataset/{}Test19_harada/test{}".format(TARGET, str(loop)), fp)
 
         # training & parameter tuning by optuna: activate function, optimizer, eopchs, batch size
         study = optuna.create_study()
-        study.optimize(_objective_HARADA, n_trials=TRIAL)
+        study.optimize(objective_HARADA, n_trials=TRIAL)
 
         # save model
         model_state_dict = torch.load("tmp/{}_model.pkl".format(str(study.best_trial.number).zfill(4)))
@@ -968,24 +968,103 @@ def tmp():
     districtRaw = pd.read_csv("rawdata/zheng2015/district.csv", dtype=object)
     staticData = pickle.load(open("datatmp/staticData.pkl", "rb"))
 
-    city_path = "BeiJing"
-    loop_path = "2"
+    city_path = "GuangZhou"
     cityNum = 19
     stationNum = 5
 
-    # train data
-    for city_id in range(cityNum):
+    for loop_path in ["1", "2", "3"]:
+
+        # train data
+        for city_id in range(cityNum):
+            for station_id in range(stationNum):
+
+                others_static_new = list()
+                others_seq_new = list()
+                others_city_new = list()
+
+                dataset_path = "dataset/{}Test19_city/train{}/train_{}{}.pkl.bz2".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+                dataset = pickle.load(bz2.BZ2File(dataset_path, "rb"))
+                local_static, local_seq, others_static, others_seq, others_city, target = dataset
+
+                print("load train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
+
+                for t in range(len(local_static)):
+
+                    cid_list = list()
+                    others_static_sorted = list()
+                    others_seq_sorted = list()
+                    others_city_sorted = list()
+
+                    static = local_static[t]
+                    sid_local = [k for k, v in staticData.items() if v == static][0]
+                    did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+                    cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+
+                    for i in range(len(others_static[t])):
+                        static = others_static[t][i][0]
+                        sid_others = [k for k, v in staticData.items() if v == static[:-2]][0]
+                        did_others = list(stationRaw[stationRaw["station_id"] == sid_others]["district_id"])[0]
+                        cid_others = list(districtRaw[districtRaw["district_id"] == did_others]["city_id"])[0]
+                        cid_list.append(cid_others)
+
+                        if len(cid_list) == 1:
+                            others_static_sorted.append(others_static[t][i])
+                            others_seq_sorted.append(others_seq[t][i])
+                            others_city_sorted.append(others_city[t][i])
+                        else:
+                            cid_list.sort()
+                            idx = cid_list.index(cid_others)
+                            others_static_sorted.insert(idx, others_static[t][i])
+                            others_seq_sorted.insert(idx, others_seq[t][i])
+                            others_city_sorted.insert(idx, others_city[t][i])
+
+                    others_static_new.append(others_static_sorted)
+                    others_seq_new.append(others_seq_sorted)
+                    others_city_new.append(others_city_sorted)
+
+                cid_list.append(cid_local)
+                cid_list.sort()
+                cid_local_index = cid_list.index(cid_local)
+                print(cid_local, end=":\t")
+                print(cid_local_index)
+                print(cid_list)
+
+                print(np.array(local_static).shape)
+                print(np.array(local_seq).shape)
+                print(np.array(others_static_new).shape)
+                print(np.array(others_seq_new).shape)
+                print(np.array(others_city_new).shape)
+                print(np.array(target).shape)
+
+                out_set = (local_static, local_seq, others_static_new, others_seq_new, others_city_new, target)
+
+                save_path = "dataset/{}Test19_harada/train{}/train_{}{}_idx.pkl".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+                with open(save_path, "wb") as fp:
+                    pickle.dump(cid_local_index, fp)
+
+                save_path = "dataset/{}Test19_harada/train{}/train_{}{}.pkl.bz2".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+                with bz2.BZ2File(save_path, 'wb', compresslevel=1) as fp:
+                    fp.write(pickle.dumps(out_set))
+                    print("save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
+                print("--------------------")
+
+        cid_trains = cid_list.copy()
+        print("Finish train data")
+        print(cid_trains)
+        print("--------------------")
+
+        # test data
         for station_id in range(stationNum):
 
             others_static_new = list()
             others_seq_new = list()
             others_city_new = list()
 
-            dataset_path = "dataset/{}Test19_city/train{}/train_{}{}.pkl.bz2".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+            dataset_path = "dataset/{}Test19_city/test{}/test_{}.pkl.bz2".format(city_path, loop_path, str(station_id).zfill(3))
             dataset = pickle.load(bz2.BZ2File(dataset_path, "rb"))
             local_static, local_seq, others_static, others_seq, others_city, target = dataset
 
-            print("load train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
+            print("load test_{}.pkl.bz2".format(str(station_id).zfill(3)))
 
             for t in range(len(local_static)):
 
@@ -993,11 +1072,6 @@ def tmp():
                 others_static_sorted = list()
                 others_seq_sorted = list()
                 others_city_sorted = list()
-
-                static = local_static[t]
-                sid_local = [k for k, v in staticData.items() if v == static][0]
-                did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
-                cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
 
                 for i in range(len(others_static[t])):
                     static = others_static[t][i][0]
@@ -1021,10 +1095,11 @@ def tmp():
                 others_seq_new.append(others_seq_sorted)
                 others_city_new.append(others_city_sorted)
 
-            cid_list.append(cid_local)
+            cid_removed = list(set(cid_trains).difference(set(cid_list)))[0]
+            cid_list.append(cid_removed)
             cid_list.sort()
-            cid_local_index = cid_list.index(cid_local)
-            print(cid_local, end=":\t")
+            cid_local_index = cid_list.index(cid_removed)
+            print(cid_removed, end=":\t")
             print(cid_local_index)
             print(cid_list)
 
@@ -1037,94 +1112,17 @@ def tmp():
 
             out_set = (local_static, local_seq, others_static_new, others_seq_new, others_city_new, target)
 
-            save_path = "dataset/{}Test19_harada/train{}/train_{}{}_idx.pkl".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+            save_path = "dataset/{}Test19_harada/test{}/test_{}_idx.pkl".format(city_path, loop_path, str(station_id).zfill(3))
             with open(save_path, "wb") as fp:
                 pickle.dump(cid_local_index, fp)
 
-            save_path = "dataset/{}Test19_harada/train{}/train_{}{}.pkl.bz2".format(city_path, loop_path, str(city_id).zfill(3), str(station_id).zfill(3))
+            save_path = "dataset/{}Test19_harada/test{}/test_{}.pkl.bz2".format(city_path, loop_path, str(station_id).zfill(3))
             with bz2.BZ2File(save_path, 'wb', compresslevel=1) as fp:
                 fp.write(pickle.dumps(out_set))
-                print("save train_{}{}.pkl.bz2".format(str(city_id).zfill(3), str(station_id).zfill(3)))
+                print("save test_{}.pkl.bz2".format(str(station_id).zfill(3)))
             print("--------------------")
 
-    cid_trains = cid_list.copy()
-    print("Finish train data")
-    print(cid_trains)
-    print("--------------------")
-
-    # test data
-    for station_id in range(stationNum):
-
-        others_static_new = list()
-        others_seq_new = list()
-        others_city_new = list()
-
-        dataset_path = "dataset/{}Test19_city/test{}/test_{}.pkl.bz2".format(city_path, loop_path, str(station_id).zfill(3))
-        dataset = pickle.load(bz2.BZ2File(dataset_path, "rb"))
-        local_static, local_seq, others_static, others_seq, others_city, target = dataset
-
-        print("load test_{}.pkl.bz2".format(str(station_id).zfill(3)))
-
-        for t in range(len(local_static)):
-
-            cid_list = list()
-            others_static_sorted = list()
-            others_seq_sorted = list()
-            others_city_sorted = list()
-
-            for i in range(len(others_static[t])):
-                static = others_static[t][i][0]
-                sid_others = [k for k, v in staticData.items() if v == static[:-2]][0]
-                did_others = list(stationRaw[stationRaw["station_id"] == sid_others]["district_id"])[0]
-                cid_others = list(districtRaw[districtRaw["district_id"] == did_others]["city_id"])[0]
-                cid_list.append(cid_others)
-
-                if len(cid_list) == 1:
-                    others_static_sorted.append(others_static[t][i])
-                    others_seq_sorted.append(others_seq[t][i])
-                    others_city_sorted.append(others_city[t][i])
-                else:
-                    cid_list.sort()
-                    idx = cid_list.index(cid_others)
-                    others_static_sorted.insert(idx, others_static[t][i])
-                    others_seq_sorted.insert(idx, others_seq[t][i])
-                    others_city_sorted.insert(idx, others_city[t][i])
-
-            others_static_new.append(others_static_sorted)
-            others_seq_new.append(others_seq_sorted)
-            others_city_new.append(others_city_sorted)
-
-        cid_removed = list(set(cid_trains).difference(set(cid_list)))[0]
-        cid_list.append(cid_removed)
-        cid_list.sort()
-        cid_local_index = cid_list.index(cid_removed)
-        print(cid_removed, end=":\t")
-        print(cid_local_index)
-        print(cid_list)
-
-        print(np.array(local_static).shape)
-        print(np.array(local_seq).shape)
-        print(np.array(others_static_new).shape)
-        print(np.array(others_seq_new).shape)
-        print(np.array(others_city_new).shape)
-        print(np.array(target).shape)
-
-        out_set = (local_static, local_seq, others_static_new, others_seq_new, others_city_new, target)
-
-        save_path = "dataset/{}Test19_harada/test{}/test_{}_idx.pkl".format(city_path, loop_path, str(station_id).zfill(3))
-        with open(save_path, "wb") as fp:
-            pickle.dump(cid_local_index, fp)
-
-        save_path = "dataset/{}Test19_harada/test{}/test_{}.pkl.bz2".format(city_path, loop_path, str(station_id).zfill(3))
-        with bz2.BZ2File(save_path, 'wb', compresslevel=1) as fp:
-            fp.write(pickle.dumps(out_set))
-            print("save test_{}.pkl.bz2".format(str(station_id).zfill(3)))
-        print("--------------------")
-
 if __name__ == "__main__":
-
-    tmp()
-    exit()
 
     device = "gpu" if torch.cuda.is_available() else "cpu"
     print("Using device: {}".format(device))
@@ -1257,9 +1255,9 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    # CITIEs4 = ["BeiJing"]
-    # for TARGET in CITIEs4:
-    #     expProposal(TRIAL, TARGET)
+    CITIEs4 = ["GuangZhou"]
+    for TARGET in CITIEs4:
+        expProposal(TRIAL, TARGET)
 
     '''
     距離計算

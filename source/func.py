@@ -1231,7 +1231,7 @@ def _objective_HARADA(trial):
     gamma = 1.0
     eta = 1.0
     batch_size = 32
-    epochs = 200
+    epochs = 1000
     lr = 0.01
     wd = 0.0
 
@@ -1283,12 +1283,11 @@ def _objective_HARADA(trial):
     # start training
     for step in range(int(epochs)):
 
-        epoch_loss = list()
         stationSelector = [random.randrange(0, 5) for i in range(cityNum)]
 
         for idx in range(len(stationSelector)):
 
-            repeat_loss = list()
+            epoch_loss = list()
             selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(selectPath, "rb")))
             trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
@@ -1319,7 +1318,7 @@ def _objective_HARADA(trial):
                 # loss append
                 batch_loss_moe = criterion_mse(y_moe, batch_target)
                 tmp = np.sqrt(float(batch_loss_moe.item()))
-                repeat_loss.append(tmp)
+                epoch_loss.append(tmp)
 
                 batch_loss_mtl = 0
                 for y_mtl_i in y_mtl:
@@ -1355,23 +1354,22 @@ def _objective_HARADA(trial):
 
                 print("{}, total: {}".format(str(tmp), str(float(batch_loss.item()))))
 
-            repeat_loss = np.mean(repeat_loss)
-            epoch_loss.append(repeat_loss)
-            print("\t\t|- epoch loss: {}".format(str(repeat_loss)))
+            epoch_loss = np.mean(epoch_loss)
+            print("\t\t|- epoch loss: {}".format(str(epoch_loss)))
 
-        # evaluate
-        model.eval()
-        rmse, accuracy = _midium_evaluate_HARADA(model, testData, testData_idx)
-        model.train()
-        log = {'epoch': step, 'train_rmse': np.mean(epoch_loss), 'test_rmse': rmse}
-        logs.append(log)
-        print("\t\t|- rmse: {}, accuracy: {}".format(str(rmse), str(accuracy)))
+            # evaluate
+            model.eval()
+            rmse, accuracy = _midium_evaluate_HARADA(model, testData, testData_idx)
+            model.train()
+            log = {'epoch': step, 'train_rmse': epoch_loss, 'test_rmse': rmse}
+            logs.append(log)
+            print("\t\t|- rmse: {}, accuracy: {}".format(str(rmse), str(accuracy)))
 
-        # early stopping
-        early_stopping(rmse, model)
-        if early_stopping.early_stop:
-            print("\t\t\tEarly stopping")
-            break
+            # early stopping
+            early_stopping(rmse, model)
+            if early_stopping.early_stop:
+                print("\t\t\tEarly stopping")
+                break
 
     # load the last checkpoint after early stopping
     model.load_state_dict(torch.load("tmp/checkpoint.pt"))
@@ -1401,11 +1399,16 @@ def _midium_evaluate_HARADA(model, testData, testData_idx):
     stationNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["station"]
 
     # for evaluation
-    result = list()
-    result_label = list()
+    criterion_mse = nn.MSELoss().eval()
+    rmse = list()
+    accuracy = list()
 
     for i in range(stationNum):
+
+        result = list()
+        result_label = list()
         local_idx = testData_idx[i]
+
         for batch_i in torch.utils.data.DataLoader(testData[i], batch_size=batch_size, shuffle=False):
 
             # batch data
@@ -1417,23 +1420,33 @@ def _midium_evaluate_HARADA(model, testData, testData_idx):
             batch_others_static = batch_others_static.to(device)
             batch_others_seq = batch_others_seq.to(device)
             batch_others_city = batch_others_city.to(device)
+            batch_target = batch_target.to(device)
 
             # predict
             with torch.no_grad():
                 y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city, local_idx)
-                pred = y_moe.to("cpu")
 
-                # evaluate
-                pred = list(map(lambda x: x[0], pred.data.numpy()))
-                batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-                result += pred
-                result_label += batch_target
+                # add to result
+                result.append(y_moe)
+                result_label.append(batch_target)
 
                 iteration += len(batch_target)
 
+        with torch.no_grad():
+            result = torch.cat(result, dim=0)
+            result_label = torch.cat(result_label, dim=0)
+            loss = criterion_mse(result, result_label)
+            rmse.append(np.sqrt(float(loss.item())))
+
+            result = result.to("cpu")
+            result_label = result_label.to("cpu")
+            result = list(map(lambda x: x[0], result.data.numpy()))
+            result_label = list(map(lambda x: x[0], result_label.data.numpy()))
+            accuracy.append(calc_correct(result, result_label) / len(result))
+
     # evaluation score
-    rmse = np.sqrt(mean_squared_error(result, result_label))
-    accuracy = calc_correct(result, result_label) / len(result)
+    rmse = np.mean(rmse)
+    accuracy = np.mean(accuracy)
 
     return rmse, accuracy
 
@@ -1453,7 +1466,7 @@ def objective_HARADA(trial):
     gamma = 1.0
     eta = 1.0
     batch_size = 32
-    epochs = 200
+    epochs = 1000
     lr = 0.01
     wd = 0.0
 
@@ -1503,12 +1516,11 @@ def objective_HARADA(trial):
     # start training
     for step in range(int(epochs)):
 
-        epoch_loss = list()
         stationSelector = [random.randrange(0, 5) for i in range(cityNum)]
 
         for idx in range(len(stationSelector)):
 
-            repeat_loss = list()
+            epoch_loss = list()
             selectPath = "{}/train_{}{}.pkl.bz2".format(trainPath, str(idx).zfill(3), str(stationSelector[idx]).zfill(3))
             trainData = MyDataset_HARADA(pickle.load(bz2.BZ2File(selectPath, "rb")))
             trainData = list(torch.utils.data.DataLoader(trainData, batch_size=batch_size, shuffle=False))
@@ -1536,7 +1548,7 @@ def objective_HARADA(trial):
                 # loss append
                 batch_loss_moe = criterion_mse(y_moe, batch_target)
                 tmp = np.sqrt(float(batch_loss_moe.item()))
-                repeat_loss.append(tmp)
+                epoch_loss.append(tmp)
 
                 batch_loss_mtl = 0
                 for y_mtl_i in y_mtl:
@@ -1572,15 +1584,14 @@ def objective_HARADA(trial):
 
                 print("{}, total: {}".format(str(tmp), str(float(batch_loss.item()))))
 
-            repeat_loss = np.mean(repeat_loss)
-            epoch_loss.append(repeat_loss)
-            print("\t\t|- epoch loss: {}".format(str(repeat_loss)))
+            epoch_loss = np.mean(epoch_loss)
+            print("\t\t|- epoch loss: {}".format(str(epoch_loss)))
 
             # evaluate
             model.eval()
             rmse, accuracy = midium_evaluate_HARADA(model, testData)
             model.train()
-            log = {'epoch': step, 'train_rmse': np.mean(epoch_loss), 'test_rmse': rmse}
+            log = {'epoch': step, 'train_rmse': epoch_loss, 'test_rmse': rmse}
             logs.append(log)
             print("\t\t|- rmse: {}, accuracy: {}".format(str(rmse), str(accuracy)))
 
@@ -1617,10 +1628,15 @@ def midium_evaluate_HARADA(model, testData):
     stationNum = pickle.load(open("{}/fileNum.pkl".format(testPath), "rb"))["station"]
 
     # for evaluation
-    result = list()
-    result_label = list()
+    criterion_mse = nn.MSELoss().eval()
+    rmse = list()
+    accuracy = list()
 
     for i in range(stationNum):
+
+        result = list()
+        result_label = list()
+
         for batch_i in torch.utils.data.DataLoader(testData[i], batch_size=batch_size, shuffle=False):
 
             # batch data
@@ -1632,23 +1648,33 @@ def midium_evaluate_HARADA(model, testData):
             batch_others_static = batch_others_static.to(device)
             batch_others_seq = batch_others_seq.to(device)
             batch_others_city = batch_others_city.to(device)
+            batch_target = batch_target.to(device)
 
             # predict
             with torch.no_grad():
                 y_moe, y_mtl, y_mmd, etp = model(batch_local_static, batch_local_seq, batch_others_static, batch_others_seq, batch_others_city)
-                pred = y_moe.to("cpu")
 
-                # evaluate
-                pred = list(map(lambda x: x[0], pred.data.numpy()))
-                batch_target = list(map(lambda x: x[0], batch_target.data.numpy()))
-                result += pred
-                result_label += batch_target
+                # add to result
+                result.append(y_moe)
+                result_label.append(batch_target)
 
                 iteration += len(batch_target)
 
+        with torch.no_grad():
+            result = torch.cat(result, dim=0)
+            result_label = torch.cat(result_label, dim=0)
+            loss = criterion_mse(result, result_label)
+            rmse.append(np.sqrt(float(loss.item())))
+
+            result = result.to("cpu")
+            result_label = result_label.to("cpu")
+            result = list(map(lambda x: x[0], result.data.numpy()))
+            result_label = list(map(lambda x: x[0], result_label.data.numpy()))
+            accuracy.append(calc_correct(result, result_label) / len(result))
+
     # evaluation score
-    rmse = np.sqrt(mean_squared_error(result, result_label))
-    accuracy = calc_correct(result, result_label) / len(result)
+    rmse = np.mean(rmse)
+    accuracy = np.mean(accuracy)
 
     return rmse, accuracy
 
