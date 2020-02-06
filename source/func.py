@@ -452,19 +452,20 @@ def makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test):
     '''
 
     dataNum = 0
-    source_location = list()
-    for i in range(len(station_train)):
-
-        # location of local city
-        sid_local = station_train[i][0]
-        did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
-        cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
-        lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
-        lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
-        source_location.append((lat_local, lon_local))
-
-    testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath_test), "rb"))["test"]
-    for i in range(testNum):
+    # source_location = list()
+    # for i in range(len(station_train)):
+    #
+    #     # location of local city
+    #     sid_local = station_train[i][0]
+    #     did_local = list(stationRaw[stationRaw["station_id"] == sid_local]["district_id"])[0]
+    #     cid_local = list(districtRaw[districtRaw["district_id"] == did_local]["city_id"])[0]
+    #     lat_local = float(cityRaw[cityRaw["city_id"] == cid_local]["latitude"])
+    #     lon_local = float(cityRaw[cityRaw["city_id"] == cid_local]["longitude"])
+    #     source_location.append((lat_local, lon_local))
+    #
+    # testNum = pickle.load(open("{}/fileNum.pkl".format(dataPath_test), "rb"))["test"]
+    #for i in range(testNum):
+    for i in range(0, 125, 25):
 
         # output
         out_others_static = list()

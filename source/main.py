@@ -882,7 +882,7 @@ def cityTest19(CITIEs20, CITIEs4):
         random.shuffle(station_test)
         station_test = station_test[:5]
 
-        for loop in range(1, 4):
+        for loop in range(1, 2):
 
             print("* Shuffle Loop: {}".format(str(loop)))
 
@@ -911,15 +911,21 @@ def cityTest19_cityData(CITIEs4):
 
             print("*---TARGET: {}".format(TARGET))
 
-            for loop in range(1, 4):
+            if TARGET == "BeiJing":
+                TARGET = "ShenZhen"
+
+            if TARGET == "ShenZhen":
+                TARGET = "BeiJing"
+
+            for loop in range(2, 3):
                 print("* Shuffle Loop: {}".format(str(loop)))
 
                 # train data
-                dataPath_train = "dataset/{}Test19/train{}".format(TARGET, str(loop))
-                savePath_train = "dataset/{}Test19_city/train{}".format(TARGET, str(loop))
+                dataPath_train = "dataset/{}Test5/train{}".format(TARGET, str(loop))
+                savePath_train = "dataset/{}Test5_city/train{}".format(TARGET, str(loop))
                 # test data
-                dataPath_test = "dataset/{}Test19/test{}".format(TARGET, str(loop))
-                savePath_test = "dataset/{}Test19_city/test{}".format(TARGET, str(loop))
+                dataPath_test = "dataset/{}Test5/test{}".format(TARGET, str(loop))
+                savePath_test = "dataset/{}Test5_city/test{}".format(TARGET, str(loop))
                 makeCityData(dataPath_train, savePath_train, dataPath_test, savePath_test)
 
 def analysisKNN(TARGET):
@@ -1164,15 +1170,17 @@ if __name__ == "__main__":
     '''
     4 cities
     '''
-    # CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    #CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    CITIEs4 = ["BeiJing"]
+    #CITIEs4 = ["ShenZhen"]
 
     '''
     create dataset
     '''
     #makeDataset(CITIEs20, ATTRIBUTE, LSTM_DATA_WIDTH, TIMEPERIOD)
     # CITIEs4 = ["TianJin"]
-    # cityTest19_cityData(CITIEs4)
-    #cityTest19(CITIEs20, CITIEs4)
+    cityTest19_cityData(CITIEs4)
+    # cityTest19(CITIEs20, CITIEs4)
     #cityTest5(CITIEs4)
     #city1test(CITIEs20, CITIEs4)
     #city1train(CITIEs20, CITIEs4)
