@@ -931,7 +931,7 @@ def analysisKNN(TARGET):
     from source.func import analysis_KNN
     from source.func import repeat_KNN
 
-    for loop in range(1, 3):
+    for loop in range(2, 3):
         print("----------------")
         print("* TARGET: {}{}".format(TARGET, str(loop)))
 
@@ -939,7 +939,7 @@ def analysisKNN(TARGET):
         with open("tmp/testPath.pkl", "wb") as fp:
             pickle.dump("dataset/{}Test19/test{}".format(TARGET, str(loop)), fp)
 
-        analysis_KNN(K=3)
+        repeat_KNN(TARGET, 0, 93)
 
     # ---------------------------------------------------------------------- #
     #
@@ -1234,8 +1234,9 @@ if __name__ == "__main__":
     '''
     # for TARGET in CITIEs4:
     #     expKNN(TARGET)
-    # for city in CITIEs4:
-    #     analysisKNN(city)
+    CITIEs4 = ["BeiJing", "TianJin", "ShenZhen", "GuangZhou"]
+    for city in CITIEs4:
+        analysisKNN(city)
 
     '''
     Experiment7:
@@ -1255,9 +1256,9 @@ if __name__ == "__main__":
     Experiment9:
     提案手法
     '''
-    CITIEs4 = ["GuangZhou"]
-    for TARGET in CITIEs4:
-        expProposal(TRIAL, TARGET)
+    # CITIEs4 = ["GuangZhou"]
+    # for TARGET in CITIEs4:
+    #     expProposal(TRIAL, TARGET)
 
     '''
     距離計算

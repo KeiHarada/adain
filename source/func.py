@@ -2110,8 +2110,9 @@ def repeat_KNN(TARGET, start, end):
         # get K nearest neighbors
         distance = sorted(distance.items(), key=lambda x: x[1])
 
-        for K in range(start, end):
-            nearest = list(map(lambda x: x[0], distance[:K]))
+        K = 3
+        for top in range(start, end):
+            nearest = list(map(lambda x: x[0], distance[top:top+K]))
 
             # agi data of source cities
             aqiData_source = list()
@@ -2121,18 +2122,19 @@ def repeat_KNN(TARGET, start, end):
 
             # evaluate
             if str(K) in result.keys():
-                result += aqiData_source
+                result += aqiData_source[1000:3000]
                 result_label += aqiData_target
             else:
-                result[str(K)] = list()
-                result_label[str(K)] = list()
-                result[str(K)] += aqiData_source
-                result_label[str(K)] += aqiData_target
+                result[str(top)] = list()
+                result_label[str(top)] = list()
+                result[str(top)] += aqiData_source[1000:3000]
+                result_label[str(top)] += aqiData_target[1000:3000]
 
-    for k in result.keys():
-        rmse = np.sqrt(mean_squared_error(result[k], result_label[k]))
+    for top in result.keys():
+        rmse = np.sqrt(mean_squared_error(result[top], result_label[top]))
+        print("{}: {}".format(top, str(rmse)))
         with open("result/{}Test19KNN_analysis.csv".format(TARGET), "a") as fp:
-            fp.write("{},{}\n".format(str(k), str(rmse)))
+            fp.write("{},{}\n".format(str(top), str(rmse)))
 
 def analysis_KNN(K):
 
